@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    .scale-container {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .arrow {
+      cursor: pointer;
+    }
+    .arrow text {
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .explanation {
+      font-size: 14px;
+      margin-top: 20px;
+    }
+    .probability-value {
+      font-size: 12px;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="scale-container">
+    <h2>Interactive Probability Scale</h2>
+    <div id="scale"></div>
+    <button onclick="toggleExplanation()">Toggle Explanation</button>
+    <div id="explanation" class="explanation" style="display: none;">
+      <div style="margin-top: 20px;">
+        <h4>Explanations:</h4>
+        <div style="color: #3498db">
+          <strong>Rolling a 5 (Unlikely):</strong>
+          <ul>
+            <li>Probability: 1/6 ≈ 16.7%</li>
+            <li>One favorable outcome out of six possible outcomes</li>
+          </ul>
+        </div>
+        <div style="color: #e74c3c">
+          <strong>Getting Heads (Even Chance):</strong>
+          <ul>
+            <li>Probability: 1/2 = 50%</li>
+            <li>One favorable outcome out of two possible outcomes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set up dimensions
+    const width = 600;
+    const height = 200;
+    const margin = { top: 60, right: 40, bottom: 40, left: 40 };
+
+    // Create SVG
+    const svg = d3.select("#scale")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    // Create scale group
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+    // Set up scales
+    const xScale = d3.scaleLinear()
+      .domain([0, 4])
+      .range([0, width - margin.left - margin.right]);
+
+    // Add base line
+    g.append("line")
+      .attr("x1", 0)
+      .attr("x2", width - margin.left - margin.right)
+      .attr("y1", 0)
+      .attr("y2", 0)
+      .attr("stroke", "black")
+      .attr("stroke-width", 2);
+
+    // Define scale positions
+    const positions = [
+      { name: "impossible", value: 0, percent: "0%" },
+      { name: "unlikely", value: 1, percent: "25%" },
+      { name: "even chance", value: 2, percent: "50%" },
+      { name: "likely", value: 3, percent: "75%" },
+      { name: "certain", value: 4, percent: "100%" }
+    ];
+
+    // Add position markers and labels
+    positions.forEach(pos => {
+      const x = xScale(pos.value);
+      
+      // Add marker line
+      g.append("line")
+        .attr("x1", x)
+        .attr("x2", x)
+        .attr("y1", -5)
+        .attr("y2", 5)
+        .attr("stroke", "black")
+        .attr("stroke-width", 2);
+
+      // Add label
+      g.append("text")
+        .attr("x", x)
+        .attr("y", 25)
+        .attr("text-anchor", "middle")
+        .attr("class", "scale-label")
+        .text(pos.name);
+
+      // Add percentage
+      g.append("text")
+        .attr("x", x)
+        .attr("y", -15)
+        .attr("text-anchor", "middle")
+        .attr("class", "probability-value")
+        .text(pos.percent);
+    });
+
+    // Define events
+    const events = [
+      { id: "A", name: "Rolling 5", initialPosition: 1, color: "#3498db" },
+      { id: "B", name: "Getting Heads", initialPosition: 2, color: "#e74c3c" }
+    ];
+
+    // Create drag behavior
+    const dragHandler = d3.drag()
+      .on("drag", function(event, d) {
+        const x = Math.max(0, Math.min(width - margin.left - margin.right, event.x));
+        d3.select(this)
+          .attr("transform", `translate(${x},0)`);
+        
+        // Update probability text
+        const prob = Math.round((x / (width - margin.left - margin.right)) * 100);
+        d3.select(this).select(".probability-text")
+          .text(`${prob}%`);
+      });
+
+    // Add arrows for events
+    events.forEach(event => {
+      const arrowGroup = g.append("g")
+        .attr("class", "arrow")
+        .attr("transform", `translate(${xScale(event.initialPosition)},0)`)
+        .call(dragHandler);
+
+      // Add arrow
+      arrowGroup.append("path")
+        .attr("d", "M 0,-30 L 0,0 M -5,-10 L 0,0 L 5,-10")
+        .attr("stroke", event.color)
+        .attr("stroke-width", 2)
+        .attr("fill", "none");
+
+      // Add label
+      arrowGroup.append("text")
+        .attr("x", 0)
+        .attr("y", -35)
+        .attr("text-anchor", "middle")
+        .attr("fill", event.color)
+        .text(`${event.id}. ${event.name}`);
+
+      // Add probability text
+      arrowGroup.append("text")
+        .attr("class", "probability-text")
+        .attr("x", 0)
+        .attr("y", -45)
+        .attr("text-anchor", "middle")
+        .attr("fill", event.color)
+        .attr("font-size", "12px")
+        .text(`${event.initialPosition * 25}%`);
+    });
+
+    function toggleExplanation() {
+      const explanation = document.getElementById("explanation");
+      explanation.style.display = explanation.style.display === "none" ? "block" : "none";
+    }
+  </script>
+</body>
+</html>

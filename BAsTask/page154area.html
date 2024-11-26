@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .visualization {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 600px;
+            position: relative;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .explanation {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .formula {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <button onclick="showArea()">Calculate Area</button>
+            <button onclick="showPerimeter()">Calculate Perimeter</button>
+            <button onclick="showBoth()">Show Both</button>
+        </div>
+        <div class="visualization">
+            <svg id="canvas" width="1000" height="500"></svg>
+        </div>
+        <div id="explanation" class="explanation"></div>
+    </div>
+
+    <script>
+        const svg = d3.select("#canvas");
+        let currentAnimation;
+
+        // Add definitions for better graphics
+        const defs = svg.append("defs");
+
+        // Add arrow markers for both ends
+        defs.append("marker")
+            .attr("id", "arrowStart")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 2)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto-start-reverse")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "black");
+
+        defs.append("marker")
+            .attr("id", "arrowEnd")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 8)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "black");
+
+        function drawDimension(g, x1, y1, x2, y2, label) {
+            // Draw dimension line with arrows on both ends
+            g.append("line")
+                .attr("x1", x1)
+                .attr("y1", y1)
+                .attr("x2", x2)
+                .attr("y2", y2)
+                .attr("stroke", "black")
+                .attr("stroke-width", 1)
+                .attr("marker-start", "url(#arrowStart)")
+                .attr("marker-end", "url(#arrowEnd)");
+
+            // Add dimension text
+            // Check if line is vertical (x coordinates are same)
+            if (x1 === x2) {
+                // Vertical line - place text to the right of the line
+                g.append("text")
+                    .attr("x", x1 + 15)  // Offset by 15px to the right
+                    .attr("y", (y1 + y2) / 2)  // Center vertically
+                    .attr("text-anchor", "start")
+                    .attr("dominant-baseline", "middle")
+                    .attr("font-size", "14px")
+                    .text(label);
+            } else {
+                // Horizontal line - place text above the line
+                g.append("text")
+                    .attr("x", (x1 + x2) / 2)
+                    .attr("y", y1 - 5)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "14px")
+                    .text(label);
+            }
+        }
+
+        function drawShape(highlight = '') {
+            // Clear previous content
+            svg.selectAll("*").remove();
+
+            // Redefine markers after clear
+            const defs = svg.append("defs");
+            defs.append("marker")
+                .attr("id", "arrowStart")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 2)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto-start-reverse")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "black");
+
+            defs.append("marker")
+                .attr("id", "arrowEnd")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 8)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "black");
+
+            // Define scale for better visibility
+            const scale = 80; // 1cm = 80px
+
+            // Create group for the shape and transform to center
+            const g = svg.append("g")
+                .attr("transform", "translate(300, 150)");
+
+            // Draw the L-shaped figure
+            const shape = g.append("path")
+                .attr("d", `
+                    M 0,0 
+                    h ${4 * scale} 
+                    v ${2 * scale} 
+                    h ${-1 * scale} 
+                    v ${1 * scale} 
+                    h ${-3 * scale} 
+                    Z
+                `)
+                .attr("fill", "#e91e63")
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+
+            // Add dimensions
+            drawDimension(g, 0, -20, 4 * scale, -20, "4 cm");
+            drawDimension(g, 4 * scale + 20, 0 , 4 * scale + 20, 2 * scale, "2 cm");
+            drawDimension(g, 3 * scale, 3 * scale + 20, 0, 3 * scale + 20, "3 cm");
+            drawDimension(g, 3 * scale + 20, 2.1 * scale, 3 * scale + 20, 3 * scale, "3 cm");
+
+            if (highlight === 'area') {
+                // Add area annotations
+                g.append("text")
+                    .attr("x", 2 * scale)
+                    .attr("y", scale)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "16px")
+                    .text("Area 1");
+
+                g.append("text")
+                    .attr("x", 2 * scale)
+                    .attr("y", 2.5 * scale)
+                    .attr("text-anchor", "middle")
+                    .attr("dominant-baseline", "middle")
+                    .attr("font-size", "16px")
+                    .text("Area 2");
+            } else if (highlight === 'perimeter') {
+                // Add perimeter highlight
+                g.append("path")
+                    .attr("d", `
+                        M 0,0 
+                        h ${4 * scale} 
+                        v ${2 * scale} 
+                        h ${-1 * scale} 
+                        v ${1 * scale} 
+                        h ${-3 * scale} 
+                        Z
+                    `)
+                    .attr("fill", "none")
+                    .attr("stroke", "#ff5722")
+                    .attr("stroke-width", 4)
+                    .attr("stroke-dasharray", "10,5");
+            }
+        }
+
+        function showArea() {
+            drawShape('area');
+            const explanation = document.getElementById("explanation");
+            explanation.innerHTML = `
+                <h3>Calculating the Total Area</h3>
+                <p>Let's break this L-shaped figure into two rectangles:</p>
+                <p><strong>Area 1 (Top Rectangle):</strong></p>
+                <div class="formula">4 cm × 2 cm = 8 cm²</div>
+                <p><strong>Area 2 (Right Rectangle):</strong></p>
+                <div class="formula">3 cm × 3 cm = 9 cm²</div>
+                <p><strong>Total Area:</strong></p>
+                <div class="formula">8 cm² + 9 cm² = 17 cm²</div>
+                <p class="highlight">The total area is 17 square centimeters (cm²)</p>
+            `;
+        }
+
+        function showPerimeter() {
+            drawShape('perimeter');
+            const explanation = document.getElementById("explanation");
+            explanation.innerHTML = `
+                <h3>Calculating the Perimeter</h3>
+                <p>Let's add up all sides of the shape:</p>
+                <div class="formula">
+                    Top: 4 cm<br>
+                    Right (upper): 2 cm<br>
+                    Right (lower): 1 cm<br>
+                    Bottom: 3 cm<br>
+                    Left: 3 cm<br>
+                    Middle vertical: 1 cm
+                </div>
+                <p><strong>Total Perimeter:</strong></p>
+                <div class="formula">4 + 2 + 1 + 3 + 3 + 1 = 14 cm</div>
+                <p class="highlight">The perimeter is 14 centimeters (cm)</p>
+            `;
+        }
+
+        function showBoth() {
+            const explanation = document.getElementById("explanation");
+            explanation.innerHTML = `
+                <h3>Area and Perimeter Summary</h3>
+                <p><strong>Area:</strong></p>
+                <div class="formula">Total Area = 17 cm²</div>
+                <p><strong>Perimeter:</strong></p>
+                <div class="formula">Total Perimeter = 14 cm</div>
+            `;
+            
+            // Show alternating visualizations
+            let isShowingArea = true;
+            drawShape('area');
+            
+            currentAnimation = setInterval(() => {
+                isShowingArea = !isShowingArea;
+                drawShape(isShowingArea ? 'area' : 'perimeter');
+            }, 3000);
+        }
+
+        // Initial draw
+        drawShape();
+    </script>
+</body>
+</html>

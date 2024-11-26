@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .scale-label {
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Probability Spinner with Likelihood Scale</h2>
+        <button onclick="spinArrow()">Spin!</button>
+        <div id="visualization"></div>
+    </div>
+
+    <script>
+        // Set up dimensions
+        const width = 800;
+        const height = 500;
+        const margin = { top: 50, right: 40, bottom: 40, left: 40 };
+        
+        // Create SVG
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Draw likelihood scale
+        const scaleWidth = width - margin.left - margin.right;
+        const scaleGroup = svg.append("g")
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        // Add base line
+        scaleGroup.append("line")
+            .attr("x1", 0)
+            .attr("x2", scaleWidth)
+            .attr("y1", 0)
+            .attr("y2", 0)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        // Add scale labels
+        const labels = ["impossible", "unlikely", "even chance", "likely", "certain"];
+        labels.forEach((label, i) => {
+            const x = (i * scaleWidth) / (labels.length - 1);
+            
+            // Add tick mark
+            scaleGroup.append("line")
+                .attr("x1", x)
+                .attr("x2", x)
+                .attr("y1", -5)
+                .attr("y2", 5)
+                .attr("stroke", "black")
+                .attr("stroke-width", 2);
+
+            // Add label
+            scaleGroup.append("text")
+                .attr("x", x)
+                .attr("y", 25)
+                .attr("text-anchor", "middle")
+                .attr("class", "scale-label")
+                .text(label);
+        });
+
+        // Create spinner section
+        const spinnerSize = 200;
+        const centerX = width/2;
+        const centerY = height - margin.bottom - spinnerSize/2;
+        
+        // Create fixed square sections
+        const squareGroup = svg.append("g")
+            .attr("transform", `translate(${centerX - spinnerSize/2}, ${centerY - spinnerSize/2})`);
+
+        // Draw the square sections
+        const sections = [
+            { value: 9, color: "#FF69B4", x: 0, y: 0, width: spinnerSize/2, height: spinnerSize/2 },             // Pink (top-left)
+            { value: 7, color: "#FFA500", x: spinnerSize/2, y: 0, width: spinnerSize/2, height: spinnerSize/2 },  // Orange (top-right)
+            { value: 5, color: "#4169E1", x: spinnerSize/2, y: spinnerSize/2, width: spinnerSize/2, height: spinnerSize/2 },  // Blue (bottom-right)
+            { value: 3, color: "#90EE90", x: 0, y: spinnerSize/2, width: spinnerSize/2, height: spinnerSize/2 }   // Green (bottom-left)
+        ];
+
+        // Draw squares
+        sections.forEach(section => {
+            squareGroup.append("rect")
+                .attr("x", section.x)
+                .attr("y", section.y)
+                .attr("width", section.width)
+                .attr("height", section.height)
+                .attr("fill", section.color)
+                .attr("stroke", "white")
+                .attr("stroke-width", 2);
+
+            // Add numbers
+            squareGroup.append("text")
+                .attr("x", section.x + section.width/2)
+                .attr("y", section.y + section.height/2)
+                .attr("text-anchor", "middle")
+                .attr("dominant-baseline", "middle")
+                .attr("fill", "white")
+                .attr("font-size", "24px")
+                .text(section.value);
+        });
+
+        // Create rotating arrow group
+        const arrowGroup = svg.append("g")
+            .attr("transform", `translate(${centerX}, ${centerY})`);
+
+        // Add arrow
+        const arrow = arrowGroup.append("path")
+            .attr("d", "M-4,0 L4,0 L0,-60 Z")
+            .attr("fill", "black");
+
+        let isSpinning = false;
+        let currentRotation = 0;
+
+        function spinArrow() {
+            if (isSpinning) return;
+            
+            isSpinning = true;
+            const rotations = 5 + Math.random() * 5; // Random number of rotations
+            const duration = 3000; // 3 seconds
+            const targetRotation = currentRotation + (rotations * 360);
+            
+            // Animate only the arrow
+            arrowGroup.transition()
+                .duration(duration)
+                .ease(d3.easeQuadInOut)
+                .attr("transform", `translate(${centerX}, ${centerY}) rotate(${targetRotation})`)
+                .on("end", () => {
+                    isSpinning = false;
+                    currentRotation = targetRotation % 360;
+                    
+                    // Calculate which section the arrow is pointing to
+                    const section = Math.floor(((currentRotation % 360) / 90)) % 4;
+                    const value = sections[section].value;
+                    
+                    // Update probability markers
+                    updateProbabilityMarkers(value);
+                });
+        }
+
+        // Function to update probability markers
+        function updateProbabilityMarkers(value) {
+            // Remove existing markers
+            scaleGroup.selectAll(".probability-marker").remove();
+
+            // Add new markers based on the value
+            const markers = [
+                { text: "Odd number", position: value % 2 === 1 ? "likely" : "unlikely" },
+                { text: "Even number", position: value % 2 === 0 ? "likely" : "unlikely" },
+                { text: "Less than 5", position: value < 5 ? "likely" : "unlikely" },
+                { text: "Greater than 6", position: value > 6 ? "likely" : "unlikely" }
+            ];
+
+            markers.forEach((marker, i) => {
+                const x = scaleWidth * labels.indexOf(marker.position) / (labels.length - 1);
+                
+                scaleGroup.append("circle")
+                    .attr("class", "probability-marker")
+                    .attr("cx", x)
+                    .attr("cy", -30 - i * 20)
+                    .attr("r", 5)
+                    .attr("fill", "red");
+
+                scaleGroup.append("text")
+                    .attr("class", "probability-marker")
+                    .attr("x", x + 10)
+                    .attr("y", -30 - i * 20)
+                    .attr("alignment-baseline", "middle")
+                    .attr("font-size", "12px")
+                    .text(marker.text);
+            });
+        }
+    </script>
+</body>
+</html>

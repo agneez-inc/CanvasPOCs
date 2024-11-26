@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    .container {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .square {
+      stroke: #333;
+      stroke-width: 2;
+    }
+    .fold-line {
+      stroke: #666;
+      stroke-width: 1;
+      stroke-dasharray: 4;
+    }
+    .iso-dot {
+      fill: #ccc;
+      r: 1;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Cube Net to 3D View</h2>
+    <button onclick="toggleView()">Toggle 3D View</button>
+    <div id="visualization"></div>
+  </div>
+
+  <script>
+    // Set up dimensions
+    const width = 800;
+    const height = 500;
+    const squareSize = 60;
+    
+    // Create SVG
+    const svg = d3.select("#visualization")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    // Create groups for different views
+    const netGroup = svg.append("g")
+      .attr("transform", `translate(${width/4 - squareSize*1.5}, ${height/2 - squareSize*1.5})`);
+
+    const isoGroup = svg.append("g")
+      .attr("transform", `translate(${3*width/4}, ${height/2})`)
+      .style("opacity", 0);
+
+    // Function to create isometric grid
+    function createIsometricGrid() {
+      const gridSize = 10;
+      const dotSpacing = 20;
+      
+      for (let i = -10; i <= 10; i++) {
+        for (let j = -10; j <= 10; j++) {
+          const x = (i - j) * Math.cos(30 * Math.PI/180) * dotSpacing;
+          const y = (i + j) * Math.sin(30 * Math.PI/180) * dotSpacing;
+          
+          isoGroup.append("circle")
+            .attr("class", "iso-dot")
+            .attr("cx", x)
+            .attr("cy", y)
+            .attr("r", 1);
+        }
+      }
+    }
+
+    // Function to draw cube in isometric view
+    function drawIsometricCube() {
+      const size = squareSize;
+      
+      // Convert isometric coordinates to screen coordinates
+      function isoToScreen(x, y, z) {
+        return {
+          x: (x - y) * Math.cos(30 * Math.PI/180) * 1,
+          y: ((x + y) * Math.sin(30 * Math.PI/180) - z) * 1
+        };
+      }
+
+      // Define cube vertices
+      const vertices = [
+        isoToScreen(0, 0, 0),
+        isoToScreen(size, 0, 0),
+        isoToScreen(size, size, 0),
+        isoToScreen(0, size, 0),
+        isoToScreen(0, 0, size),
+        isoToScreen(size, 0, size),
+        isoToScreen(size, size, size),
+        isoToScreen(0, size, size)
+      ];
+
+      // Draw faces
+      // Bottom face
+      isoGroup.append("path")
+        .attr("d", `M ${vertices[0].x} ${vertices[0].y} 
+                    L ${vertices[1].x} ${vertices[1].y}
+                    L ${vertices[2].x} ${vertices[2].y}
+                    L ${vertices[3].x} ${vertices[3].y} Z`)
+        .attr("fill", "#9b7fd4")
+        .attr("stroke", "#333")
+        .attr("opacity", 0.8);
+
+      // Right face
+      isoGroup.append("path")
+        .attr("d", `M ${vertices[1].x} ${vertices[1].y}
+                    L ${vertices[2].x} ${vertices[2].y}
+                    L ${vertices[6].x} ${vertices[6].y}
+                    L ${vertices[5].x} ${vertices[5].y} Z`)
+        .attr("fill", "#8b6dc4")
+        .attr("stroke", "#333")
+        .attr("opacity", 0.9);
+
+      // Left face
+      isoGroup.append("path")
+        .attr("d", `M ${vertices[0].x} ${vertices[0].y}
+                    L ${vertices[3].x} ${vertices[3].y}
+                    L ${vertices[7].x} ${vertices[7].y}
+                    L ${vertices[4].x} ${vertices[4].y} Z`)
+        .attr("fill", "#7b5db4")
+        .attr("stroke", "#333")
+        .attr("opacity", 0.7);
+
+      // Draw edges
+      const edges = [
+        [0,1], [1,2], [2,3], [3,0],
+        [4,5], [5,6], [6,7], [7,4],
+        [0,4], [1,5], [2,6], [3,7]
+      ];
+
+      edges.forEach(([i, j]) => {
+        isoGroup.append("line")
+          .attr("x1", vertices[i].x)
+          .attr("y1", vertices[i].y)
+          .attr("x2", vertices[j].x)
+          .attr("y2", vertices[j].y)
+          .attr("stroke", "#333")
+          .attr("stroke-width", 1.5);
+      });
+    }
+
+    // Draw the net
+    function drawNet() {
+      const squares = [
+        { x: squareSize, y: squareSize },     // center
+        { x: squareSize, y: 0 },              // top
+        { x: squareSize * 2, y: squareSize }, // right
+        { x: squareSize, y: squareSize * 2 }, // bottom
+        { x: 0, y: squareSize },              // left
+        { x: squareSize, y: squareSize }      // back (overlaps center)
+      ];
+
+      // Draw squares
+      squares.forEach((square, i) => {
+        netGroup.append("rect")
+          .attr("class", "square")
+          .attr("x", square.x)
+          .attr("y", square.y)
+          .attr("width", squareSize)
+          .attr("height", squareSize)
+          .attr("fill", "#9b7fd4")
+          .attr("opacity", 0.8);
+
+        // Add numbers
+        netGroup.append("text")
+          .attr("x", square.x + squareSize/2)
+          .attr("y", square.y + squareSize/2)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("fill", "white")
+          .attr("font-size", "20px")
+          .text(i + 1);
+      });
+
+      // Add fold lines
+      squares.slice(1).forEach(square => {
+        netGroup.append("line")
+          .attr("class", "fold-line")
+          .attr("x1", square.x + squareSize/2)
+          .attr("y1", square.y + squareSize/2)
+          .attr("x2", squareSize * 1.5)
+          .attr("y2", squareSize * 1.5);
+      });
+    }
+
+    // Initialize
+    drawNet();
+    createIsometricGrid();
+    drawIsometricCube();
+
+    // Toggle between views
+    function toggleView() {
+      const isShowingNet = netGroup.style("opacity") !== "0";
+      
+      netGroup.transition()
+        .duration(1000)
+        .style("opacity", isShowingNet ? 0 : 1);
+        
+      isoGroup.transition()
+        .duration(1000)
+        .style("opacity", isShowingNet ? 1 : 0);
+    }
+  </script>
+</body>
+</html>

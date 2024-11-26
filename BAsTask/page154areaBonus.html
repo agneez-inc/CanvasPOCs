@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .visualization {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 600px;
+            position: relative;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .explanation {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .instructions {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .tool-active {
+            background: linear-gradient(145deg, #2196F3, #1976D2);
+        }
+        .grid-point {
+            cursor: pointer;
+            transition: r 0.2s;
+        }
+        .grid-point:hover {
+            r: 6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="instructions" id="instructions">
+            Click points to create your shape. Click 'Complete Shape' when finished.
+        </div>
+        <div class="controls">
+            <button onclick="startNewShape()">New Shape</button>
+            <button onclick="completeShape()" id="completeBtn" disabled>Complete Shape</button>
+            <button onclick="showMeasurements()" id="measureBtn" disabled>Show Measurements</button>
+            <button onclick="calculateArea()" id="areaBtn" disabled>Calculate Area</button>
+            <button onclick="calculatePerimeter()" id="perimeterBtn" disabled>Calculate Perimeter</button>
+            <button onclick="showBoth()" id="bothBtn" disabled>Show Both</button>
+        </div>
+        <div class="visualization">
+            <svg id="canvas" width="1000" height="500"></svg>
+        </div>
+        <div id="explanation" class="explanation"></div>
+    </div>
+
+    <script>
+        const svg = d3.select("#canvas");
+        const gridSize = 40; // Size of grid squares in pixels
+        const gridPoints = [];
+        let selectedPoints = [];
+        let isDrawing = false;
+        let currentShape = null;
+
+        // Setup grid
+        function setupGrid() {
+            svg.selectAll("*").remove();
+            
+            // Create grid points
+            for(let x = gridSize; x < 960; x += gridSize) {
+                for(let y = gridSize; y < 460; y += gridSize) {
+                    gridPoints.push([x, y]);
+                }
+            }
+
+            // Draw grid points
+            svg.selectAll("circle")
+                .data(gridPoints)
+                .enter()
+                .append("circle")
+                .attr("cx", d => d[0])
+                .attr("cy", d => d[1])
+                .attr("r", 4)
+                .attr("fill", "#2196F3")
+                .attr("class", "grid-point")
+                .on("click", function(event, d) {
+                    if (!isDrawing) return;
+                    const point = d3.select(this);
+                    if (selectedPoints.length > 0 && 
+                        selectedPoints[selectedPoints.length-1][0] === d[0] && 
+                        selectedPoints[selectedPoints.length-1][1] === d[1]) {
+                        return; // Prevent duplicate points
+                    }
+                    selectedPoints.push(d);
+                    updateShape();
+                });
+        }
+
+        function updateShape() {
+            // Remove previous shape
+            svg.selectAll(".shape-path").remove();
+            
+            if (selectedPoints.length < 2) return;
+
+            // Create shape path
+            const pathData = "M " + selectedPoints.map(p => p[0] + "," + p[1]).join(" L ");
+            currentShape = svg.append("path")
+                .attr("class", "shape-path")
+                .attr("d", pathData)
+                .attr("fill", "none")
+                .attr("stroke", "#e91e63")
+                .attr("stroke-width", 2);
+
+            // Enable complete button if we have at least 3 points
+            document.getElementById("completeBtn").disabled = selectedPoints.length < 3;
+        }
+
+        function startNewShape() {
+            isDrawing = true;
+            selectedPoints = [];
+            setupGrid();
+            document.getElementById("instructions").innerHTML = 
+                "Click points to create your shape. Click 'Complete Shape' when finished.";
+            
+            // Disable all buttons except complete
+            document.getElementById("completeBtn").disabled = true;
+            document.getElementById("measureBtn").disabled = true;
+            document.getElementById("areaBtn").disabled = true;
+            document.getElementById("perimeterBtn").disabled = true;
+            document.getElementById("bothBtn").disabled = true;
+        }
+
+        function completeShape() {
+            if (selectedPoints.length < 3) return;
+            
+            // Close the shape
+            const pathData = "M " + selectedPoints.map(p => p[0] + "," + p[1]).join(" L ") + " Z";
+            currentShape.attr("d", pathData)
+                .attr("fill", "#e91e63")
+                .attr("fill-opacity", 0.5);
+
+            isDrawing = false;
+            document.getElementById("instructions").innerHTML = 
+                "Shape completed! Use the buttons above to analyze it.";
+
+            // Enable measurement buttons
+            document.getElementById("measureBtn").disabled = false;
+            document.getElementById("areaBtn").disabled = false;
+            document.getElementById("perimeterBtn").disabled = false;
+            document.getElementById("bothBtn").disabled = false;
+        }
+
+        function showMeasurements() {
+            // Add measurements to each side
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                
+                // Calculate length in grid units
+                const dx = p2[0] - p1[0];
+                const dy = p2[1] - p1[1];
+                const length = Math.sqrt(dx * dx + dy * dy) / gridSize;
+                
+                // Add measurement line and text
+                const midX = (p1[0] + p2[0]) / 2;
+                const midY = (p1[1] + p2[1]) / 2;
+                
+                // Add arrow line
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                const offset = 20;
+                
+                svg.append("line")
+                    .attr("x1", midX + offset * Math.sin(angle * Math.PI / 180))
+                    .attr("y1", midY - offset * Math.cos(angle * Math.PI / 180))
+                    .attr("x2", midX - offset * Math.sin(angle * Math.PI / 180))
+                    .attr("y2", midY + offset * Math.cos(angle * Math.PI / 180))
+                    .attr("stroke", "black")
+                    .attr("marker-end", "url(#arrowEnd)")
+                    .attr("marker-start", "url(#arrowStart)");
+
+                // Add measurement text
+                svg.append("text")
+                    .attr("x", midX)
+                    .attr("y", midY - offset - 5)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "14px")
+                    .text(`${length.toFixed(1)} cm`);
+            }
+        }
+
+        function calculateArea() {
+            // Calculate area using shoelace formula
+            let area = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                area += (p1[0] * p2[1] - p2[0] * p1[1]);
+            }
+            area = Math.abs(area / 2) / (gridSize * gridSize);
+
+            document.getElementById("explanation").innerHTML = `
+                <h3>Area Calculation</h3>
+                <div class="formula">Total Area = ${area.toFixed(1)} cm²</div>
+            `;
+        }
+
+        function calculatePerimeter() {
+            let perimeter = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                const dx = p2[0] - p1[0];
+                const dy = p2[1] - p1[1];
+                perimeter += Math.sqrt(dx * dx + dy * dy) / gridSize;
+            }
+
+            document.getElementById("explanation").innerHTML = `
+                <h3>Perimeter Calculation</h3>
+                <div class="formula">Total Perimeter = ${perimeter.toFixed(1)} cm</div>
+            `;
+        }
+
+        function showBoth() {
+            showMeasurements();
+            const explanation = document.getElementById("explanation");
+            
+            // Calculate area
+            let area = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                area += (p1[0] * p2[1] - p2[0] * p1[1]);
+            }
+            area = Math.abs(area / 2) / (gridSize * gridSize);
+
+            // Calculate perimeter
+            let perimeter = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                const dx = p2[0] - p1[0];
+                const dy = p2[1] - p1[1];
+                perimeter += Math.sqrt(dx * dx + dy * dy) / gridSize;
+            }
+
+            explanation.innerHTML = `
+                <h3>Area and Perimeter Summary</h3>
+                <p><strong>Area:</strong></p>
+                <div class="formula">Total Area = ${area.toFixed(1)} cm²</div>
+                <p><strong>Perimeter:</strong></p>
+                <div class="formula">Total Perimeter = ${perimeter.toFixed(1)} cm</div>
+            `;
+        }
+
+        // Initialize
+        setupGrid();
+    </script>
+</body>
+</html>

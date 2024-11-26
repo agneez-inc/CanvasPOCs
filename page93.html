@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .shape {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .shape:hover {
+            transform: scale(1.1);
+        }
+        .solution-box {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .solution-title {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Probability Bag Analysis</h2>
+        <button onclick="shuffleShapes()">Shuffle Bag</button>
+        <button onclick="drawShape()">Draw Shape</button>
+        <div id="visualization"></div>
+        <div class="solution-box">
+            <div class="solution-title">Solution Explanation</div>
+            <div class="step">
+                <strong>Step 1: Count the shapes</strong><br>
+                • Cubes: 2<br>
+                • Spheres: 2<br>
+                • Pyramids: 3<br>
+                Total shapes: 7
+            </div>
+            <div class="step">
+                <strong>Step 2: Calculate probabilities</strong><br>
+                • Probability of drawing a cube = 2/7<br>
+                • Probability of drawing a sphere = 2/7<br>
+                • Probability of drawing a pyramid = 3/7
+            </div>
+            <div class="step">
+                <strong>Step 3: Compare probabilities</strong><br>
+                Cubes and Spheres have the same probability (2/7), which means they are <span class="highlight">equally likely</span> to be drawn from the bag.
+            </div>
+            <div class="step">
+                <strong>Conclusion</strong><br>
+                The two shapes that are equally likely to be taken from the bag are <span class="highlight">cubes and spheres</span>, each with a probability of 2/7.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set up dimensions
+        const width = 800;
+        const height = 500;
+        
+        // Create SVG
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Define shapes and their counts
+        const shapes = {
+            cube: { count: 2, color: "#FF6B6B", name: "Cube" },
+            sphere: { count: 2, color: "#FF9F9F", name: "Sphere" },
+            pyramid: { count: 3, color: "#FF4949", name: "Pyramid" }
+        };
+
+        // Create beautiful bag with gradient
+        const defs = svg.append("defs");
+        
+        const bagGradient = defs.append("linearGradient")
+            .attr("id", "bagGradient")
+            .attr("x1", "0%")
+            .attr("y1", "0%")
+            .attr("x2", "100%")
+            .attr("y2", "100%");
+
+        bagGradient.append("stop")
+            .attr("offset", "0%")
+            .attr("stop-color", "#89CFF0")
+            .attr("stop-opacity", 0.9);
+
+        bagGradient.append("stop")
+            .attr("offset", "100%")
+            .attr("stop-color", "#5CACEE")
+            .attr("stop-opacity", 0.9);
+
+        function createBag() {
+            const bagGroup = svg.append("g").attr("class", "bag");
+
+            // Bag shadow
+            bagGroup.append("path")
+                .attr("d", `
+                    M ${width/2-100},${height/2}
+                    C ${width/2-100},${height/2-100} ${width/2+100},${height/2-100} ${width/2+100},${height/2}
+                    L ${width/2+80},${height/2+150}
+                    C ${width/2+50},${height/2+170} ${width/2-50},${height/2+170} ${width/2-80},${height/2+150}
+                    Z
+                `)
+                .attr("fill", "rgba(0,0,0,0.1)")
+                .attr("transform", "translate(5,5)");
+
+            // Main bag
+            bagGroup.append("path")
+                .attr("d", `
+                    M ${width/2-100},${height/2}
+                    C ${width/2-100},${height/2-100} ${width/2+100},${height/2-100} ${width/2+100},${height/2}
+                    L ${width/2+80},${height/2+150}
+                    C ${width/2+50},${height/2+170} ${width/2-50},${height/2+170} ${width/2-80},${height/2+150}
+                    Z
+                `)
+                .attr("fill", "url(#bagGradient)")
+                .attr("stroke", "#4A90E2")
+                .attr("stroke-width", 2);
+
+            // Bag opening highlight
+            bagGroup.append("path")
+                .attr("d", `
+                    M ${width/2-90},${height/2}
+                    C ${width/2-90},${height/2-90} ${width/2+90},${height/2-90} ${width/2+90},${height/2}
+                `)
+                .attr("fill", "none")
+                .attr("stroke", "white")
+                .attr("stroke-width", 4)
+                .attr("stroke-opacity", 0.6);
+
+            // Decorative string
+            bagGroup.append("path")
+                .attr("d", `
+                    M ${width/2-95},${height/2-10}
+                    Q ${width/2},${height/2-30} ${width/2+95},${height/2-10}
+                `)
+                .attr("fill", "none")
+                .attr("stroke", "#4A90E2")
+                .attr("stroke-width", 3)
+                .attr("stroke-dasharray", "5,5");
+        }
+
+        // Function to create cube
+        function createCube(x, y, size) {
+            const g = svg.append("g")
+                .attr("class", "shape")
+                .attr("transform", `translate(${x},${y})`);
+
+            // Front face
+            g.append("rect")
+                .attr("width", size)
+                .attr("height", size)
+                .attr("fill", shapes.cube.color);
+
+            // Top face
+            g.append("path")
+                .attr("d", `M 0,0 L ${size/2},-${size/2} L ${size*1.5},-${size/2} L ${size},0 Z`)
+                .attr("fill", d3.color(shapes.cube.color).brighter(0.5));
+
+            // Right face
+            g.append("path")
+                .attr("d", `M ${size},0 L ${size*1.5},-${size/2} L ${size*1.5},${size/2} L ${size},${size} Z`)
+                .attr("fill", d3.color(shapes.cube.color).darker(0.5));
+
+            return g;
+        }
+
+        // Function to create sphere
+        function createSphere(x, y, radius) {
+            const g = svg.append("g")
+                .attr("class", "shape")
+                .attr("transform", `translate(${x},${y})`);
+
+            // Main circle
+            g.append("circle")
+                .attr("r", radius)
+                .attr("fill", shapes.sphere.color);
+
+            // Highlight
+            g.append("ellipse")
+                .attr("cx", -radius/3)
+                .attr("cy", -radius/3)
+                .attr("rx", radius/3)
+                .attr("ry", radius/4)
+                .attr("fill", "white")
+                .attr("opacity", 0.3);
+
+            return g;
+        }
+
+        // Function to create pyramid
+        function createPyramid(x, y, size) {
+            const g = svg.append("g")
+                .attr("class", "shape")
+                .attr("transform", `translate(${x},${y})`);
+
+            // Base
+            g.append("path")
+                .attr("d", `M 0,${size} L ${size},${size} L ${size/2},0 Z`)
+                .attr("fill", shapes.pyramid.color);
+
+            // Right face
+            g.append("path")
+                .attr("d", `M ${size},${size} L ${size*1.2},${size*0.8} L ${size/2},0 Z`)
+                .attr("fill", d3.color(shapes.pyramid.color).darker(0.5));
+
+            return g;
+        }
+
+        // Function to distribute shapes in bag
+        function distributeShapes() {
+            // Clear existing shapes
+            svg.selectAll(".shape").remove();
+
+            const centerX = width/2;
+            const centerY = height/2 + 50;
+            const radius = 80;
+
+            let angle = 0;
+            const angleStep = (2 * Math.PI) / 7; // 7 total shapes
+
+            // Add cubes
+            for(let i = 0; i < shapes.cube.count; i++) {
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                createCube(x-20, y-20, 40);
+                angle += angleStep;
+            }
+
+            // Add spheres
+            for(let i = 0; i < shapes.sphere.count; i++) {
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                createSphere(x, y, 20);
+                angle += angleStep;
+            }
+
+            // Add pyramids
+            for(let i = 0; i < shapes.pyramid.count; i++) {
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                createPyramid(x-20, y-20, 40);
+                angle += angleStep;
+            }
+        }
+
+        // Function to shuffle shapes
+        function shuffleShapes() {
+            svg.selectAll(".shape")
+                .transition()
+                .duration(1000)
+                .attr("transform", function() {
+                    const centerX = width/2;
+                    const centerY = height/2 + 50;
+                    const radius = 80;
+                    const angle = Math.random() * 2 * Math.PI;
+                    const x = centerX + radius * Math.cos(angle);
+                    const y = centerY + radius * Math.sin(angle);
+                    return `translate(${x-20},${y-20})`;
+                });
+        }
+
+        // Function to simulate drawing a shape
+        function drawShape() {
+            const shapes = svg.selectAll(".shape").nodes();
+            if (shapes.length > 0) {
+                const randomIndex = Math.floor(Math.random() * shapes.length);
+                const selectedShape = d3.select(shapes[randomIndex]);
+                
+                selectedShape
+                    .transition()
+                    .duration(500)
+                    .attr("transform", `translate(${width/2-20},${height/4-20})`)
+                    .transition()
+                    .duration(500)
+                    .attr("transform", `translate(${width/2-20},${height/2+30})`);
+            }
+        }
+
+        // Initialize visualization
+        createBag();
+        distributeShapes();
+
+    </script>
+</body>
+</html>

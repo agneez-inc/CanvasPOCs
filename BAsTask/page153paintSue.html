@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .visualization {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 600px;
+            position: relative;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .explanation {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .paint-can {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .paint-can:hover {
+            transform: translateY(-5px);
+        }
+        .ratio-display {
+            font-size: 20px;
+            margin: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Sue's Paint Mixing Adventure! 🎨</h1>
+        <div class="controls">
+            <button onclick="showGreenMix()">Make Green Paint</button>
+            <button onclick="showPurpleMix()">Make Purple Paint</button>
+            <button onclick="checkAnswers()">Check Answers</button>
+        </div>
+        <div class="visualization">
+            <svg id="canvas" width="1000" height="500"></svg>
+        </div>
+        <div id="explanation" class="explanation"></div>
+    </div>
+
+    <script>
+        const svg = d3.select("#canvas");
+        
+        function createPaintCan(x, y, color, label, scale = 1) {
+            const can = svg.append("g")
+                .attr("class", "paint-can")
+                .attr("transform", `translate(${x}, ${y}) scale(${scale})`);
+
+            // Can body
+            can.append("path")
+                .attr("d", `
+                    M 0,20
+                    L 0,100
+                    Q 0,120 20,120
+                    L 80,120
+                    Q 100,120 100,100
+                    L 100,20
+                    Q 100,0 80,0
+                    L 20,0
+                    Q 0,0 0,20
+                `)
+                .attr("fill", "white")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2);
+
+            // Paint drip
+            can.append("path")
+                .attr("d", `
+                    M 20,0
+                    Q 50,-10 80,0
+                `)
+                .attr("fill", color)
+                .attr("stroke", "none");
+
+            // Label
+            can.append("text")
+                .attr("x", 50)
+                .attr("y", 70)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "16px")
+                .attr("fill", "#333")
+                .text(label);
+
+            return can;
+        }
+
+        function showGreenMix() {
+            svg.selectAll("*").remove();
+
+            // Create title
+            svg.append("text")
+                .attr("x", 500)
+                .attr("y", 50)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "24px")
+                .attr("fill", "#333")
+                .text("Making Green Paint! 🎨");
+
+            // Show initial cans
+            const yellowCan1 = createPaintCan(100, 100, "yellow", "Yellow");
+            const yellowCan2 = createPaintCan(250, 100, "yellow", "Yellow");
+            const blueCan = createPaintCan(400, 100, "blue", "Blue");
+
+            // Show mixing arrow
+            svg.append("path")
+                .attr("d", "M 500,150 L 600,150")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2)
+                .attr("marker-end", "url(#arrow)");
+
+            // Show result
+            const greenCan = createPaintCan(650, 100, "green", "Green", 1.2);
+
+            // Add explanation
+            document.getElementById("explanation").innerHTML = `
+                <h3>Let's Make Green Paint! 🌿</h3>
+                <p>To make green paint, Sue uses:</p>
+                <ul>
+                    <li>2 cans of yellow paint (⅔ of the mixture)</li>
+                    <li>1 can of blue paint (⅓ of the mixture)</li>
+                </ul>
+                <p>So the ratio of yellow to blue is 2:1</p>
+                <p>This means:</p>
+                <ul>
+                    <li>⅔ of the green paint is yellow</li>
+                    <li>⅓ of the green paint is blue</li>
+                </ul>
+            `;
+        }
+
+        function showPurpleMix() {
+            svg.selectAll("*").remove();
+
+            // Create title
+            svg.append("text")
+                .attr("x", 500)
+                .attr("y", 50)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "24px")
+                .attr("fill", "#333")
+                .text("Making Purple Paint! 🎨");
+
+            // Show red cans
+            for(let i = 0; i < 3; i++) {
+                createPaintCan(100 + i * 150, 100, "red", "Red");
+            }
+
+            // Show blue cans
+            for(let i = 0; i < 4; i++) {
+                createPaintCan(100 + i * 150, 250, "blue", "Blue");
+            }
+
+            // Show mixing arrow
+            svg.append("path")
+                .attr("d", "M 600,200 L 700,200")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2)
+                .attr("marker-end", "url(#arrow)");
+
+            // Show result
+            const purpleCan = createPaintCan(750, 175, "purple", "Purple", 1.2);
+
+            // Add explanation
+            document.getElementById("explanation").innerHTML = `
+                <h3>Let's Make Purple Paint! 💜</h3>
+                <p>To make purple paint, Sue uses:</p>
+                <ul>
+                    <li>3 cans of red paint (3/7 of the mixture)</li>
+                    <li>4 cans of blue paint (4/7 of the mixture)</li>
+                </ul>
+                <p>So the ratio of red to blue is 3:4</p>
+                <p>This means:</p>
+                <ul>
+                    <li>3/7 of the purple paint is red</li>
+                    <li>4/7 of the purple paint is blue</li>
+                </ul>
+            `;
+        }
+
+        function checkAnswers() {
+            document.getElementById("explanation").innerHTML = `
+                <h3>Let's Check the Answers! ✅</h3>
+                <p>a) The ratio of yellow to blue in green paint is 2:1 - <span style="color: green">TRUE</span></p>
+                <p>b) The proportion of red in purple paint is 3/7 - <span style="color: green">TRUE</span></p>
+                <p>c) 2/3 of green paint is yellow - <span style="color: green">TRUE</span></p>
+                <p>d) 3 in every 4 parts of purple paint is red - <span style="color: red">FALSE</span> (It's 3 in every 7 parts)</p>
+                <p>e) 1/3 of green paint is blue - <span style="color: green">TRUE</span></p>
+            `;
+        }
+
+        // Start with green mix demonstration
+        showGreenMix();
+    </script>
+</body>
+</html>

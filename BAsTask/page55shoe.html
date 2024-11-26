@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #e0f2f1;
+        }
+        .shoe-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .shoe-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .shoe-card:hover {
+            transform: translateY(-5px);
+        }
+        .price-tag {
+            background: #fff9c4;
+            padding: 5px 15px;
+            border-radius: 15px;
+            display: inline-block;
+            margin-top: 10px;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .mode-highlight {
+            border: 3px solid #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .analysis {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+        .shoe {
+            width: 200px;
+            height: 150px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Shoe Price Analysis</h2>
+        <div class="controls">
+            <button onclick="showMode()">Show Mode</button>
+            <button onclick="showDistribution()">Show Distribution</button>
+            <button onclick="resetView()">Reset</button>
+        </div>
+        <div class="shoe-container" id="shoeDisplay"></div>
+        <div class="analysis" id="analysis"></div>
+    </div>
+
+    <script>
+        const shoes = [
+            { price: 30.00, color: "#ffd54f", type: "Oxford", 
+              path: "M20,50 C30,20 170,20 180,50 L180,70 C170,100 30,100 20,70 Z" },
+            { price: 19.99, color: "#ffb74d", type: "Loafer",
+              path: "M30,50 C40,30 160,30 170,50 L170,80 C160,100 40,100 30,80 Z" },
+            { price: 18.50, color: "#ef9a9a", type: "Sneaker",
+              path: "M30,30 L170,30 L170,90 L30,90 Z" },
+            { price: 18.50, color: "#aed581", type: "Heel",
+              path: "M20,50 L180,50 L150,100 L50,100 Z" },
+            { price: 25.45, color: "#f48fb1", type: "Pump",
+              path: "M30,40 C40,20 160,20 170,40 L170,70 C160,90 40,90 30,70 Z" }
+        ];
+
+        function createShoeCards() {
+            const container = d3.select("#shoeDisplay");
+            
+            shoes.forEach((shoe, i) => {
+                const card = container.append("div")
+                    .attr("class", "shoe-card")
+                    .attr("id", `shoe-${i}`);
+
+                // Create SVG for shoe
+                const svg = card.append("svg")
+                    .attr("class", "shoe")
+                    .attr("viewBox", "0 0 200 120");
+
+                // Draw shoe shape
+                svg.append("path")
+                    .attr("d", shoe.path)
+                    .attr("fill", shoe.color)
+                    .attr("stroke", "#333")
+                    .attr("stroke-width", "2");
+
+                // Add price tag
+                card.append("div")
+                    .attr("class", "price-tag")
+                    .html(`$${shoe.price.toFixed(2)}`);
+            });
+        }
+
+        function showMode() {
+            // Find mode
+            const priceFrequency = {};
+            shoes.forEach(shoe => {
+                priceFrequency[shoe.price] = (priceFrequency[shoe.price] || 0) + 1;
+            });
+            
+            const mode = Object.entries(priceFrequency)
+                .reduce((a, b) => a[1] > b[1] ? a : b)[0];
+
+            // Highlight mode
+            d3.selectAll(".shoe-card")
+                .classed("mode-highlight", false);
+                
+            shoes.forEach((shoe, i) => {
+                if(shoe.price === parseFloat(mode)) {
+                    d3.select(`#shoe-${i}`)
+                        .classed("mode-highlight", true);
+                }
+            });
+
+            // Show analysis
+            d3.select("#analysis")
+                .html(`
+                    <h3>Price Analysis</h3>
+                    <p>The mode (most frequent price) is $${parseFloat(mode).toFixed(2)}</p>
+                    <p>This price appears ${priceFrequency[mode]} times in the dataset.</p>
+                `);
+        }
+
+        function showDistribution() {
+            const width = 400;
+            const height = 200;
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+
+            // Create histogram
+            const prices = shoes.map(s => s.price);
+            const histogram = d3.histogram()
+                .domain([d3.min(prices), d3.max(prices)])
+                .thresholds(5);
+
+            const bins = histogram(prices);
+
+            const svg = d3.select("#analysis")
+                .html("")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const x = d3.scaleLinear()
+                .domain([d3.min(prices), d3.max(prices)])
+                .range([margin.left, width - margin.right]);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(bins, d => d.length)])
+                .range([height - margin.bottom, margin.top]);
+
+            // Add bars
+            svg.selectAll("rect")
+                .data(bins)
+                .enter().append("rect")
+                .attr("x", d => x(d.x0))
+                .attr("y", d => y(d.length))
+                .attr("width", d => x(d.x1) - x(d.x0) - 1)
+                .attr("height", d => height - margin.bottom - y(d.length))
+                .attr("fill", "#4CAF50");
+
+            // Add axes
+            svg.append("g")
+                .attr("transform", `translate(0,${height - margin.bottom})`)
+                .call(d3.axisBottom(x).ticks(5).tickFormat(d => `$${d}`));
+
+            svg.append("g")
+                .attr("transform", `translate(${margin.left},0)`)
+                .call(d3.axisLeft(y));
+        }
+
+        function resetView() {
+            d3.selectAll(".shoe-card")
+                .classed("mode-highlight", false);
+            d3.select("#analysis").html("");
+        }
+
+        // Initialize
+        createShoeCards();
+    </script>
+</body>
+</html>

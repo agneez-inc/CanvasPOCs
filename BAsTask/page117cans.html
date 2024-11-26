@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .visualization {
+            background-image: url('/img/Warehouse.png');
+            background-position:left;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 600px;
+            position: relative;
+        }
+        .can {
+            cursor: pointer;
+            transition: transform 0.7s;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .explanation {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <button onclick="startDemonstration()">Start Demonstration</button>
+            <button onclick="previousStep()">Previous Step</button>
+            <button onclick="nextStep()">Next Step</button>
+        </div>
+        <div class="visualization">
+            <svg id="canvas" width="1000" height="600"></svg>
+            <div id="counter" class="counter"></div>
+        </div>
+        <div id="explanation" class="explanation"></div>
+    </div>
+
+    <script>
+        const svg = d3.select("#canvas");
+        let currentStep = 0;
+        const defs = svg.append("defs");
+
+        // Metallic gradient for can top
+        const metalGradient = defs.append("linearGradient")
+            .attr("id", "metalGradient")
+            .attr("x1", "0%")
+            .attr("y1", "0%")
+            .attr("x2", "100%")
+            .attr("y2", "100%");
+
+        metalGradient.append("stop")
+            .attr("offset", "0%")
+            .attr("style", "stop-color:#f7f7f7;stop-opacity:1");
+
+        metalGradient.append("stop")
+            .attr("offset", "100%")
+            .attr("style", "stop-color:#c0c0c0;stop-opacity:1");
+
+        // Can body gradient
+        // Can body gradient
+const canGradient = defs.append("linearGradient")
+    .attr("id", "canGradient")
+    .attr("x1", "0%")
+    .attr("y1", "0%")
+    .attr("x2", "100%")
+    .attr("y2", "100%");
+
+canGradient.append("stop")
+    .attr("offset", "0%")
+    .attr("style", "stop-color:#ff0000;stop-opacity:1");  // Bright red
+
+canGradient.append("stop")
+    .attr("offset", "100%")
+    .attr("style", "stop-color:#cc0000;stop-opacity:1");  // Darker red
+
+        function createSoupCan(x, y, scale = 1, delay = 0) {
+            const canGroup = svg.append("g")
+                .attr("class", "can")
+                .attr("transform", `translate(${x}, ${y}) scale(${scale})`)
+                .style("opacity", 0);
+
+            // Can body (cylinder)
+            canGroup.append("rect")
+                .attr("width", 30)
+                .attr("height", 45)
+                .attr("rx", 2)
+                .attr("fill", "url(#canGradient)")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 1);
+
+            // Can top (ellipse)
+            canGroup.append("ellipse")
+                .attr("cx", 15)
+                .attr("cy", 0)
+                .attr("rx", 15)
+                .attr("ry", 5)
+                .attr("fill", "url(#metalGradient)")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 1);
+
+            // Can bottom (ellipse)
+            canGroup.append("ellipse")
+                .attr("cx", 15)
+                .attr("cy", 45)
+                .attr("rx", 15)
+                .attr("ry", 5)
+                .attr("fill", "url(#metalGradient)")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 1);
+
+            // Label
+            canGroup.append("rect")
+                .attr("x", 2)
+                .attr("y", 10)
+                .attr("width", 26)
+                .attr("height", 25)
+                .attr("fill", "white")
+                .attr("rx", 2);
+
+            // Label text
+            canGroup.append("text")
+                .attr("x", 15)
+                .attr("y", 20)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "6px")
+                .text("TASTY");
+
+            canGroup.append("text")
+                .attr("x", 15)
+                .attr("y", 28)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "6px")
+                .text("SOUP");
+
+            canGroup.transition()
+                .delay(delay)
+                .duration(500)
+                .style("opacity", 1);
+
+            return canGroup;
+        }
+
+        function createTray(x, y, delay = 0, showCans = false) {
+            const trayGroup = svg.append("g")
+                .attr("transform", `translate(${x}, ${y})`)
+                .style("opacity", 0);
+
+            // Tray bottom
+            trayGroup.append("rect")
+                .attr("width", 260)
+                .attr("height", 180)
+                .attr("fill", "#95a5a6")
+                .attr("stroke", "#7f8c8d")
+                .attr("stroke-width", 2)
+                .attr("rx", 5);
+
+            // Tray edges
+            trayGroup.append("path")
+                .attr("d", `M 0,0 L 10,-10 L 270,-10 L 260,0 Z`)
+                .attr("fill", "#7f8c8d");
+
+            trayGroup.append("path")
+                .attr("d", `M 260,0 L 270,-10 L 270,170 L 260,180 Z`)
+                .attr("fill", "#7f8c8d");
+
+            if (showCans) {
+                // Add cans in a 6x4 grid
+                for(let row = 0; row < 4; row++) {
+                    for(let col = 0; col < 6; col++) {
+                        createSoupCan(
+                            x + 20 + col * 40,
+                            y + 20 + row * 40,
+                            0.8,
+                            delay + (row * 6 + col) * 50
+                        );
+                    }
+                }
+            }
+
+            trayGroup.transition()
+                .delay(delay)
+                .duration(500)
+                .style("opacity", 1);
+
+            return trayGroup;
+        }
+
+        const steps = [
+            {
+                title: "Understanding One Tray",
+                render: () => {
+                    svg.selectAll("*").remove();
+                    const tray = createTray(50, 50, 0, true);
+                    updateExplanation(
+                        "Let's start with one tray:<br>" +
+                        "• Each tray has <span class='highlight'>6 columns</span> and <span class='highlight'>4 rows</span> of cans<br>" +
+                        "• To find the total cans, we multiply: 6 × 4 = 24 cans per tray<br>" +
+                        "Let's count them together!"
+                    );
+                    countCans(24);
+                }
+            },
+            {
+                title: "Stacking Six Trays",
+                render: () => {
+                    svg.selectAll("*").remove();
+                    for(let i = 0; i < 6; i++) {
+                        createTray(50, 50 + i * 40, i * 500, i === 5); // Only show cans on last tray
+                    }
+                    updateExplanation(
+                        "Now let's pack six trays together:<br>" +
+                        "• Each tray has 24 cans<br>" +
+                        "• We need 6 trays<br>" +
+                        "• Total cans = 24 × 6 = 144 cans in a stack"
+                    );
+                }
+            },
+            {
+                title: "Tomato Soup Order",
+                render: () => {
+                    svg.selectAll("*").remove();
+                    // Create 7 stacks for tomato soup
+                    for(let stack = 0; stack < 7; stack++) {
+                        for(let tray = 0; tray < 6; tray++) {
+                            createTray(
+                                50 + stack * 120, 
+                                50 + tray * 40, 
+                                stack * 300 + tray * 100,
+                                tray === 5  // Only show cans on last tray of each stack
+                            );
+                        }
+                    }
+                    updateExplanation(
+                        "Calculating tomato soup order:<br>" +
+                        "• 7 stacks needed<br>" +
+                        "• Each stack has 144 cans<br>" +
+                        "• Total tomato soup cans = 7 × 144 = 1,008 cans"
+                    );
+                }
+            }
+        ];
+
+        function updateExplanation(text) {
+            document.getElementById("explanation").innerHTML = `
+                <div class="step-title">Step ${currentStep + 1} of ${steps.length}</div>
+                ${text}
+            `;
+        }
+
+        function countCans(total) {
+            let count = 0;
+            const interval = setInterval(() => {
+                count++;
+                document.getElementById("counter").textContent = `Warehouse Learning Portal Cans: ${count}`;
+                if(count >= total) clearInterval(interval);
+            }, 100);
+        }
+
+        function startDemonstration() {
+            currentStep = 0;
+            steps[currentStep].render();
+        }
+
+        function nextStep() {
+            if(currentStep < steps.length - 1) {
+                currentStep++;
+                steps[currentStep].render();
+            }
+        }
+
+        function previousStep() {
+            if(currentStep > 0) {
+                currentStep--;
+                steps[currentStep].render();
+            }
+        }
+
+        // Start the demonstration
+        startDemonstration();
+    </script>
+</body>
+</html>

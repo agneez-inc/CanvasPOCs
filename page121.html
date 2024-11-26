@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .cell {
+            fill: white;
+            stroke: #333;
+        }
+        .highlight {
+            fill: #FFE4B5;
+        }
+        .error {
+            fill: #FFB6B6;
+        }
+        .correct {
+            fill: #98FB98;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .explanation {
+            margin: 20px;
+            padding: 15px;
+            border-left: 4px solid #4CAF50;
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Multiplication Analysis: 24 × 12</h2>
+        <button onclick="nextStep()">Next Step</button>
+        <div id="visualization"></div>
+        <div class="explanation" id="explanation"></div>
+    </div>
+
+    <script>
+        const width = 600;
+        const height = 500;
+        const cellSize = 60;
+        
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        let currentStep = 0;
+        
+        function createTable(highlight = [], errors = [], corrects = []) {
+            svg.selectAll("*").remove();
+
+            // Create table group and center it
+            const tableGroup = svg.append("g")
+                .attr("transform", `translate(${width/2 - cellSize*2}, 50)`);
+
+            // Create cells
+            for(let row = 0; row < 5; row++) {
+                for(let col = 0; col < 4; col++) {
+                    const cellClass = highlight.includes(`${row}-${col}`) ? "highlight" :
+                                    errors.includes(`${row}-${col}`) ? "error" :
+                                    corrects.includes(`${row}-${col}`) ? "correct" : "cell";
+                    
+                    tableGroup.append("rect")
+                        .attr("x", col * cellSize)
+                        .attr("y", row * cellSize)
+                        .attr("width", cellSize)
+                        .attr("height", cellSize)
+                        .attr("class", cellClass);
+                }
+            }
+
+            // Add horizontal lines
+            [2, 4].forEach(row => {
+                tableGroup.append("line")
+                    .attr("x1", 0)
+                    .attr("x2", cellSize * 4)
+                    .attr("y1", row * cellSize)
+                    .attr("y2", row * cellSize)
+                    .attr("stroke", "black")
+                    .attr("stroke-width", 2);
+            });
+
+            // Add numbers based on step
+            const numbers = getNumbersForStep(currentStep);
+            numbers.forEach(({value, row, col}) => {
+                tableGroup.append("text")
+                    .attr("x", col * cellSize + cellSize/2)
+                    .attr("y", row * cellSize + cellSize/2)
+                    .attr("text-anchor", "middle")
+                    .attr("dominant-baseline", "middle")
+                    .attr("font-size", "20px")
+                    .text(value);
+            });
+        }
+
+        function getNumbersForStep(step) {
+            const baseNumbers = [
+                {value: "2", row: 0, col: 2},
+                {value: "4", row: 0, col: 3},
+                {value: "×", row: 1, col: 0},
+                {value: "1", row: 1, col: 2},
+                {value: "2", row: 1, col: 3}
+            ];
+
+            if (step === 0) return baseNumbers;
+
+            if (step === 1) return [
+                ...baseNumbers,
+                {value: "2", row: 2, col: 0},
+                {value: "4", row: 2, col: 1},
+                {value: "0", row: 2, col: 2},
+                {value: "0", row: 2, col: 3}
+            ];
+
+            if (step === 2) return [
+                ...baseNumbers,
+                {value: "2", row: 2, col: 0},
+                {value: "4", row: 2, col: 1},
+                {value: "0", row: 2, col: 2},
+                {value: "0", row: 2, col: 3},
+                {value: "4", row: 3, col: 2},
+                {value: "8", row: 3, col: 3}
+            ];
+
+            return [
+                ...baseNumbers,
+                {value: "2", row: 2, col: 0},
+                {value: "4", row: 2, col: 1},
+                {value: "0", row: 2, col: 2},
+                {value: "0", row: 2, col: 3},
+                {value: "4", row: 3, col: 2},
+                {value: "8", row: 3, col: 3},
+                {value: "2", row: 4, col: 0},
+                {value: "4", row: 4, col: 1},
+                {value: "4", row: 4, col: 2},
+                {value: "8", row: 4, col: 3}
+            ];
+        }
+
+        const explanations = [
+            "Initial setup: 24 × 12",
+            "Multiply by 2: 24 × 2 = 48, but Arun wrote it as '240' (Error!)",
+            "Multiply by 1: 24 × 10 = 240 (correct placement)",
+            "Final step: The error in the first multiplication led to incorrect addition. Should be 48 + 240 = 288"
+        ];
+
+        const highlights = [
+            ['0-2', '0-3', '1-2', '1-3'],
+            ['2-0', '2-1', '2-2', '2-3'],
+            ['3-2', '3-3'],
+            ['4-0', '4-1', '4-2', '4-3']
+        ];
+
+        const errors = [
+            [],
+            ['2-2', '2-3'],
+            [],
+            ['4-2', '4-3']
+        ];
+
+        const corrects = [
+            [],
+            [],
+            ['3-2', '3-3'],
+            []
+        ];
+
+        function nextStep() {
+            if (currentStep < explanations.length) {
+                createTable(highlights[currentStep], errors[currentStep], corrects[currentStep]);
+                d3.select("#explanation")
+                    .html(`<strong>Step ${currentStep + 1}:</strong> ${explanations[currentStep]}`);
+                currentStep++;
+            }
+        }
+
+        // Initialize with first step
+        nextStep();
+    </script>
+</body>
+</html>

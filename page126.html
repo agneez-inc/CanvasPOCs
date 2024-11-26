@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .number {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .number:hover {
+            transform: scale(1.1);
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result-box {
+            margin: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9f9;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Number Divisibility Analysis</h2>
+        <div class="button-group">
+            <button onclick="checkDivisibilityBy(2)">Check Divisible by 2</button>
+            <button onclick="checkDivisibilityBy(4)">Check Divisible by 4</button>
+            <button onclick="resetNumbers()">Reset</button>
+        </div>
+        <div id="visualization"></div>
+        <div id="results" class="result-box"></div>
+    </div>
+
+    <script>
+        const width = 800;
+        const height = 500;
+        
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Define numbers with their properties
+        const numbers = [
+            { value: 422, color: "#1f77b4", x: 500, y: 100 },
+            { value: 366, color: "#ff7f0e", x: 200, y: 150 },
+            { value: 14432, color: "#2ca02c", x: 350, y: 200 },
+            { value: 234444, color: "#d62728", x: 200, y: 250 },
+            { value: 790124, color: "#9467bd", x: 600, y: 150 },
+            { value: 555, color: "#8c564b", x: 400, y: 300 },
+            { value: 146, color: "#e377c2", x: 550, y: 250 },
+            { value: 160, color: "#7f7f7f", x: 300, y: 350 }
+        ];
+
+        // Create ellipse background
+        const ellipse = svg.append("ellipse")
+            .attr("cx", width/2)
+            .attr("cy", height/2)
+            .attr("rx", 350)
+            .attr("ry", 200)
+            .attr("fill", "#e6f3ff")
+            .attr("opacity", 0.5);
+
+        // Function to create initial number layout
+        function createNumbers() {
+            const numberGroups = svg.selectAll(".number")
+                .data(numbers)
+                .enter()
+                .append("g")
+                .attr("class", "number")
+                .attr("transform", d => `translate(${d.x}, ${d.y})`);
+
+            numberGroups.append("circle")
+                .attr("r", 40)
+                .attr("fill", d => d.color)
+                .attr("opacity", 0.7);
+
+            numberGroups.append("text")
+                .attr("text-anchor", "middle")
+                .attr("dy", "0.3em")
+                .attr("fill", "white")
+                .attr("font-size", d => d.value.toString().length > 4 ? "12px" : "16px")
+                .text(d => d.value);
+
+            return numberGroups;
+        }
+
+        function checkDivisibilityBy(divisor) {
+            const divisibleNumbers = numbers.filter(n => n.value % divisor === 0);
+            
+            // Animate divisible numbers
+            svg.selectAll(".number")
+                .transition()
+                .duration(1000)
+                .attr("transform", function(d) {
+                    if (d.value % divisor === 0) {
+                        return `translate(${width/2}, ${height/2}) scale(1.2)`;
+                    } else {
+                        return `translate(${d.x}, ${d.y}) scale(0.8) opacity(0.5)`;
+                    }
+                });
+
+            // Update results display
+            const resultDiv = d3.select("#results");
+            resultDiv.html(`
+                <h3>Numbers divisible by ${divisor}:</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    ${divisibleNumbers.map(n => `
+                        <span style="
+                            padding: 5px 15px;
+                            background-color: ${n.color};
+                            color: white;
+                            border-radius: 15px;
+                            font-weight: bold;
+                        ">${n.value}</span>
+                    `).join('')}
+                </div>
+                <p style="margin-top: 10px;">
+                    Found ${divisibleNumbers.length} numbers divisible by ${divisor}
+                </p>
+            `);
+
+            // Add floating animation to divisible numbers
+            svg.selectAll(".number")
+                .filter(d => d.value % divisor === 0)
+                .transition()
+                .duration(2000)
+                .attr("transform", function(d) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 50;
+                    const offsetX = Math.cos(angle) * radius;
+                    const offsetY = Math.sin(angle) * radius;
+                    return `translate(${width/2 + offsetX}, ${height/2 + offsetY}) scale(1.2)`;
+                })
+                .on("end", function() {
+                    d3.select(this)
+                        .transition()
+                        .duration(2000)
+                        .attr("transform", `translate(${width/2}, ${height/2}) scale(1.2)`)
+                        .on("end", function() {
+                            d3.select(this)
+                                .transition()
+                                .duration(2000)
+                                .attr("transform", function(d) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const radius = 50;
+                                    const offsetX = Math.cos(angle) * radius;
+                                    const offsetY = Math.sin(angle) * radius;
+                                    return `translate(${width/2 + offsetX}, ${height/2 + offsetY}) scale(1.2)`;
+                                });
+                        });
+                });
+        }
+
+        function resetNumbers() {
+            svg.selectAll(".number")
+                .transition()
+                .duration(1000)
+                .attr("transform", d => `translate(${d.x}, ${d.y}) scale(1)`)
+                .style("opacity", 1);
+
+            d3.select("#results").html("");
+        }
+
+        // Initialize visualization
+        createNumbers();
+
+        // Add pulsing animation to the ellipse
+        function pulseEllipse() {
+            ellipse.transition()
+                .duration(2000)
+                .attr("rx", 360)
+                .attr("ry", 210)
+                .transition()
+                .duration(2000)
+                .attr("rx", 350)
+                .attr("ry", 200)
+                .on("end", pulseEllipse);
+        }
+
+        pulseEllipse();
+    </script>
+</body>
+</html>

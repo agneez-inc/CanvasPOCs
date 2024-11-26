@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .grid-cell {
+            stroke: #333;
+            stroke-width: 1;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .calculation-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+        }
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Percentage Calculator Grid</h2>
+        <div class="controls">
+            <button onclick="highlightTotal()">Show Total Squares</button>
+            <button onclick="highlightShaded()">Show Shaded Squares</button>
+            <button onclick="calculatePercentage()">Calculate Percentage</button>
+            <button onclick="reset()">Reset</button>
+        </div>
+        <div id="visualization"></div>
+        <div id="calculation" class="calculation-box"></div>
+    </div>
+
+    <script>
+        // Grid dimensions
+        const gridSize = 8;
+        const cellSize = 40;
+        const margin = 40;
+
+        // Calculate total width and height
+        const width = gridSize * cellSize + margin * 2;
+        const height = gridSize * cellSize + margin * 2;
+
+        // Create SVG
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Create grid container
+        const grid = svg.append("g")
+            .attr("transform", `translate(${margin}, ${margin})`);
+
+        // Create grid cells
+        for (let row = 0; row < gridSize; row++) {
+            for (let col = 0; col < gridSize; col++) {
+                grid.append("rect")
+                    .attr("class", "grid-cell")
+                    .attr("x", col * cellSize)
+                    .attr("y", row * cellSize)
+                    .attr("width", cellSize)
+                    .attr("height", cellSize)
+                    .attr("fill", row < 2 && col < 5 ? "#e74c3c" : "white")
+                    .attr("opacity", 1);
+            }
+        }
+
+        // Add row and column numbers
+        for (let i = 0; i < gridSize; i++) {
+            // Row numbers
+            svg.append("text")
+                .attr("x", margin - 10)
+                .attr("y", margin + i * cellSize + cellSize/2)
+                .attr("text-anchor", "end")
+                .attr("dominant-baseline", "middle")
+                .text(i + 1);
+
+            // Column numbers
+            svg.append("text")
+                .attr("x", margin + i * cellSize + cellSize/2)
+                .attr("y", margin - 10)
+                .attr("text-anchor", "middle")
+                .text(i + 1);
+        }
+
+        function highlightTotal() {
+            grid.selectAll(".grid-cell")
+                .transition()
+                .duration(500)
+                .style("opacity", 0.3)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+
+            showStep("Total squares in grid:", `8 × 8 = ${8 * 8} squares`);
+        }
+
+        function highlightShaded() {
+            // Highlight only shaded cells
+            grid.selectAll(".grid-cell")
+                .transition()
+                .duration(500)
+                .style("opacity", function() {
+                    return d3.select(this).attr("fill") === "#e74c3c" ? 1 : 0.2;
+                });
+
+            showStep("Shaded squares:", "2 × 5 = 10 squares");
+        }
+
+        function calculatePercentage() {
+            const totalSquares = 64;  // 8 × 8
+            const shadedSquares = 10; // 2 × 5
+            const percentage = (shadedSquares / totalSquares) * 100;
+
+            document.getElementById("calculation").innerHTML = `
+                <div class="step">Total squares: 8 × 8 = ${totalSquares}</div>
+                <div class="step">Shaded squares: 2 × 5 = ${shadedSquares}</div>
+                <div class="step">Percentage calculation: 
+                    (${shadedSquares} ÷ ${totalSquares}) × 100 = ${percentage.toFixed(2)}%
+                </div>
+                <div class="step highlight">
+                    ${percentage.toFixed(2)}% of the grid is shaded
+                </div>
+            `;
+
+            // Animate the grid
+            grid.selectAll(".grid-cell")
+                .transition()
+                .duration(1000)
+                .style("opacity", function() {
+                    return d3.select(this).attr("fill") === "#e74c3c" ? 1 : 0.3;
+                });
+        }
+
+        function showStep(title, content) {
+            document.getElementById("calculation").innerHTML = `
+                <div class="step">
+                    <strong>${title}</strong><br>
+                    ${content}
+                </div>
+            `;
+        }
+
+        function reset() {
+            grid.selectAll(".grid-cell")
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+
+            document.getElementById("calculation").innerHTML = "";
+        }
+
+        // Initialize with total count
+        highlightTotal();
+    </script>
+</body>
+</html>

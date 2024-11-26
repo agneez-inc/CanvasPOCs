@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .grid-line {
+            stroke: #ccc;
+            stroke-width: 1;
+            opacity: 0.7;
+        }
+        .lake {
+            fill: #ADD8E6;
+            stroke: #4682B4;
+            stroke-width: 2;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .analysis-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .grid-cell {
+            fill: transparent;
+            stroke: #ddd;
+            stroke-width: 1;
+        }
+        .grid-cell:hover {
+            fill: rgba(70, 130, 180, 0.2);
+            cursor: pointer;
+        }
+        .highlighted {
+            fill: rgba(70, 130, 180, 0.3);
+        }
+        .partial {
+            fill: rgba(70, 130, 180, 0.15);
+        }
+        .scale-text {
+            font-size: 12px;
+            fill: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Lake Area Estimation</h2>
+        <button onclick="countSquares()">Count Squares</button>
+        <button onclick="showEstimate()">Show Estimate</button>
+        <button onclick="reset()">Reset</button>
+        <div id="visualization"></div>
+        <div id="analysis" class="analysis-box"></div>
+    </div>
+
+    <script>
+        const width = 600;
+        const height = 600;
+        const gridSize = 50;
+        
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Add grid
+        const grid = svg.append("g")
+            .attr("transform", "translate(50, 50)");
+
+        // Draw grid lines
+        for (let i = 0; i <= 10; i++) {
+            // Vertical lines
+            grid.append("line")
+                .attr("class", "grid-line")
+                .attr("x1", i * gridSize)
+                .attr("y1", 0)
+                .attr("x2", i * gridSize)
+                .attr("y2", gridSize * 10);
+
+            // Horizontal lines
+            grid.append("line")
+                .attr("class", "grid-line")
+                .attr("x1", 0)
+                .attr("y1", i * gridSize)
+                .attr("x2", gridSize * 10)
+                .attr("y2", i * gridSize);
+        }
+
+        // Corrected lake path data to match the image more accurately
+        const lakePathData = `
+            M 200,150 
+            C 210,140 220,130 240,140
+            Q 270,150 280,170
+            Q 290,190 285,210
+            Q 280,230 260,240
+            Q 240,250 220,260
+            Q 200,270 180,260
+            Q 160,250 150,230
+            Q 140,210 150,190
+            Q 160,170 180,160
+            Z
+        `;
+
+        grid.append("path")
+            .attr("class", "lake")
+            .attr("transform", "translate(50, 50)")
+            .attr("d", lakePathData);
+
+        // Add grid cells
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 10; j++) {
+                grid.append("rect")
+                    .attr("class", "grid-cell")
+                    .attr("x", i * gridSize)
+                    .attr("y", j * gridSize)
+                    .attr("width", gridSize)
+                    .attr("height", gridSize)
+                    .attr("data-row", i)
+                    .attr("data-col", j);
+            }
+        }
+
+        // Add scale indicator
+        grid.append("line")
+            .attr("x1", 400)
+            .attr("y1", 450)
+            .attr("x2", 450)
+            .attr("y2", 450)
+            .attr("stroke", "black")
+            .attr("stroke-width", 2);
+
+        grid.append("text")
+            .attr("class", "scale-text")
+            .attr("x", 425)
+            .attr("y", 470)
+            .attr("text-anchor", "middle")
+            .text("1 km");
+
+        // Add Lake text
+        grid.append("text")
+            .attr("x", 250)
+            .attr("y", 220)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#4682B4")
+            .attr("font-size", "16px")
+            .text("Lake");
+
+        let highlightedCount = 0;
+        let partialCount = 0;
+
+        function countSquares() {
+            d3.selectAll(".grid-cell")
+                .on("click", function() {
+                    const cell = d3.select(this);
+                    if (cell.classed("highlighted")) {
+                        cell.classed("highlighted", false)
+                            .classed("partial", false);
+                        highlightedCount--;
+                    } else if (cell.classed("partial")) {
+                        cell.classed("partial", false);
+                        partialCount -= 0.5;
+                    } else {
+                        cell.classed("highlighted", true);
+                        highlightedCount++;
+                    }
+                    updateAnalysis();
+                })
+                .on("contextmenu", function(event) {
+                    event.preventDefault();
+                    const cell = d3.select(this);
+                    if (!cell.classed("highlighted")) {
+                        cell.classed("partial", !cell.classed("partial"));
+                        partialCount += cell.classed("partial") ? 0.5 : -0.5;
+                        updateAnalysis();
+                    }
+                });
+        }
+
+        function showEstimate() {
+            // Corrected full squares
+            const fullSquares = [
+                [4,3], [4,4], [5,3], [5,4]
+            ];
+
+            // Corrected partial squares
+            const partialSquares = [
+                [3,3], [3,4], [4,2], [4,5], 
+                [5,2], [5,5], [6,3], [6,4]
+            ];
+
+            reset();
+
+            fullSquares.forEach(([row, col]) => {
+                d3.select(`.grid-cell[data-row="${row}"][data-col="${col}"]`)
+                    .classed("highlighted", true);
+            });
+
+            partialSquares.forEach(([row, col]) => {
+                d3.select(`.grid-cell[data-row="${row}"][data-col="${col}"]`)
+                    .classed("partial", true);
+            });
+
+            highlightedCount = fullSquares.length;
+            partialCount = partialSquares.length * 0.5;
+            updateAnalysis();
+        }
+
+        function updateAnalysis() {
+            const totalArea = highlightedCount + partialCount;
+            document.getElementById("analysis").innerHTML = `
+                <h3>Area Estimation:</h3>
+                <p>Full squares: ${highlightedCount} km²</p>
+                <p>Partial squares equivalent: ${partialCount} km²</p>
+                <p>Estimated total area: ${totalArea} square kilometers</p>
+                <p>Method:</p>
+                <ul>
+                    <li>Full squares: Each counts as 1 km²</li>
+                    <li>Partial squares: Each counts as 0.5 km²</li>
+                </ul>
+            `;
+        }
+
+        function reset() {
+            d3.selectAll(".grid-cell")
+                .classed("highlighted", false)
+                .classed("partial", false);
+            highlightedCount = 0;
+            partialCount = 0;
+            document.getElementById("analysis").innerHTML = "";
+        }
+
+        // Show initial estimate
+        showEstimate();
+    </script>
+</body>
+</html>

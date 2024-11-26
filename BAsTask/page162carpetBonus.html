@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .carpet-preview {
+        width: 60px;
+        height: 60px;
+        border-radius: 4px;
+        margin-right: 15px;
+        overflow: hidden;
+        }
+
+    .carpet-preview img {
+        width: 3px;  /* Smaller preview size */
+        height: 3px;
+        background-repeat: repeat;
+        background-position: center;
+        image-rendering: pixelated;
+        }
+        .visualization {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .canvas-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .carpet-selection {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .carpet-option {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .carpet-option:hover {
+            transform: translateX(5px);
+            border-color: #4CAF50;
+        }
+        .carpet-option.selected {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        .carpet-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 4px;
+            margin-right: 15px;
+            /* background-size: cover; */
+        }
+        .carpet-info {
+            flex: 1;
+        }
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .explanation {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        .instructions {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .grid-point {
+            cursor: pointer;
+            transition: r 0.2s;
+        }
+        .grid-point:hover {
+            r: 6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="instructions" id="instructions">
+            Click points to create your shape. Click 'Complete Shape' when finished.
+        </div>
+        <div class="controls">
+            <button onclick="startNewShape()">New Shape</button>
+            <button onclick="completeShape()" id="completeBtn" disabled>Complete Shape</button>
+            <button onclick="showMeasurements()" id="measureBtn" disabled>Show Measurements</button>
+            <button onclick="calculateArea()" id="areaBtn" disabled>Calculate Area</button>
+            <button onclick="calculatePerimeter()" id="perimeterBtn" disabled>Calculate Perimeter</button>
+            <button onclick="showBoth()" id="bothBtn" disabled>Show Both</button>
+        </div>
+        <div class="visualization">
+            <div class="canvas-container">
+                <svg id="canvas" width="800" height="500"></svg>
+            </div>
+            <div class="carpet-selection">
+                <h3>Select Carpet</h3>
+                <div id="carpet-options"></div>
+                <div id="carpet-calculation" class="calculation"></div>
+            </div>
+        </div>
+        <div id="explanation" class="explanation"></div>
+    </div>
+    <script>
+        const svg = d3.select("#canvas");
+        const gridSize = 40;
+        const gridPoints = [];
+        let selectedPoints = [];
+        let isDrawing = false;
+        let currentShape = null;
+        let selectedCarpet = null;
+
+        // Define carpet options with images
+        const carpets = [
+            {
+                id: 1,
+                name: "Red Solid",
+                price: 18,
+                image: "/img/carpet1.png"
+            },
+            {
+                id: 2,
+                name: "Blue Pattern",
+                price: 16,
+                image: "/img/carpet2.png"
+            },
+            {
+                id: 3,
+                name: "Green Texture",
+                price: 13,
+                image: "/img/carpet3.png"
+            },
+            {
+                id: 4,
+                name: "Purple Luxury",
+                price: 12,
+                image: "/img/carpet4.png"
+            },
+            {
+            id: 5,
+            name: "Grey Floral",
+            price: 15,
+            color: '#95a5a6',
+            image: '/img/carpet5.png'
+            },
+            {
+            id: 6,
+            name: "Striped Premium",
+            price: 21,
+            color: '#0000',
+            image: '/img/carpet6.png'
+            }
+        ];
+
+        // Setup pattern definitions
+        function setupPatterns() {
+            const defs = svg.select("defs").empty() ? svg.append("defs") : svg.select("defs");
+    
+    // Clear existing patterns
+    defs.selectAll("pattern").remove();
+    
+    // Add carpet patterns with actual images
+    carpets.forEach(carpet => {
+        const pattern = defs.append("pattern")
+            .attr("id", `carpet-pattern-${carpet.id}`)
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 100)
+            .attr("height", 100);
+
+        pattern.append("image")
+            .attr("href", carpet.image)
+            .attr("width", 100)
+            .attr("height", 100)
+            .attr("preserveAspectRatio", "xMidYMid slice");
+    });
+
+
+            // Add arrow markers
+            defs.append("marker")
+                .attr("id", "arrowStart")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 2)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto-start-reverse")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "black");
+
+            defs.append("marker")
+                .attr("id", "arrowEnd")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 8)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "black");
+        }
+
+        function setupCarpetOptions() {
+            const container = document.getElementById("carpet-options");
+    container.innerHTML = "";
+
+    carpets.forEach(carpet => {
+        const option = document.createElement("div");
+        option.className = "carpet-option";
+        option.innerHTML = `
+            <div class="carpet-preview">
+                <img src="${carpet.image}" alt="${carpet.name}" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="carpet-info">
+                <div class="carpet-name">${carpet.name}</div>
+                <div class="carpet-price">$${carpet.price} per m²</div>
+            </div>
+        `;
+        option.onclick = () => selectCarpet(carpet);
+        container.appendChild(option);
+    });
+        }
+
+        function selectCarpet(carpet) {
+    selectedCarpet = carpet;
+    
+    // Update selected state in UI
+    document.querySelectorAll(".carpet-option").forEach(opt => {
+        opt.classList.remove("selected");
+    });
+    document.querySelector(`.carpet-option:nth-child(${carpet.id})`).classList.add("selected");
+
+    // Apply pattern to shape
+    if (currentShape) {
+        const shapeId = currentShape.attr("data-id");
+        
+        // Remove existing pattern if any
+        svg.select(`#pattern-${shapeId}`).remove();
+        
+        // Create new pattern
+        const pattern = svg.select("defs")
+            .append("pattern")
+            .attr("id", `pattern-${shapeId}`)
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 30)  // Small size for pattern
+            .attr("height", 30)
+            .attr("patternTransform", "rotate(0)");
+
+        // Add image to pattern
+        pattern.append("image")
+            .attr("href", carpet.image)
+            .attr("width", 30)
+            .attr("height", 30)
+            .attr("preserveAspectRatio", "xMidYMid slice");
+
+        // Apply pattern to shape
+        currentShape
+            .attr("fill", `url(#pattern-${shapeId})`)
+            .attr("fill-opacity", 1)
+            .attr("stroke", "#333")
+            .attr("stroke-width", 2);
+            
+        calculateCarpetCost();
+    }
+}
+
+        function calculateCarpetCost() {
+            if (!selectedCarpet || !currentShape) return;
+
+            // Calculate area
+            let area = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                area += (p1[0] * p2[1] - p2[0] * p1[1]);
+            }
+            area = Math.abs(area / 2) / (gridSize * gridSize);
+
+            const cost = area * selectedCarpet.price;
+            
+            document.getElementById("carpet-calculation").innerHTML = `
+                <h4>Carpet Cost Calculation</h4>
+                <p>Area: ${area.toFixed(1)} m²</p>
+                <p>Price: $${selectedCarpet.price} per m²</p>
+                <p><strong>Total Cost: $${cost.toFixed(2)}</strong></p>
+            `;
+        }
+
+        // [Previous grid setup and shape drawing functions remain the same]
+
+        function setupGrid() {
+    svg.selectAll("*").remove();
+    gridPoints.length = 0;  // Clear existing points
+    
+    // Create grid points
+    for(let x = gridSize; x < 960; x += gridSize) {
+        for(let y = gridSize; y < 460; y += gridSize) {
+            gridPoints.push([x, y]);
+        }
+    }
+
+    // Draw grid points
+    svg.selectAll("circle")
+        .data(gridPoints)
+        .enter()
+        .append("circle")
+        .attr("cx", d => d[0])
+        .attr("cy", d => d[1])
+        .attr("r", 4)
+        .attr("fill", "#2196F3")
+        .attr("class", "grid-point")
+        .on("click", function(event, d) {
+            if (!isDrawing) return;
+            if (selectedPoints.length > 0 && 
+                selectedPoints[selectedPoints.length-1][0] === d[0] && 
+                selectedPoints[selectedPoints.length-1][1] === d[1]) {
+                return;
+            }
+            selectedPoints.push(d);
+            updateShape();
+        });
+}
+
+function updateShape() {
+    // Remove previous shape and background
+    svg.selectAll(".shape-path").remove();
+    svg.selectAll(".carpet-fill").remove();
+    
+    if (selectedPoints.length < 2) return;
+
+    const shapeId = "shape-" + Date.now();
+
+    // Create a pattern for tiling the image
+    const defs = svg.select("defs").empty() ? svg.append("defs") : svg.select("defs");
+    
+    // Create clip path for the shape
+    const clipPath = defs.append("clipPath")
+        .attr("id", `clip-${shapeId}`)
+        .append("path")
+        .attr("d", "M " + selectedPoints.map(p => p[0] + "," + p[1]).join(" L "));
+
+    // Create shape path
+    const pathData = "M " + selectedPoints.map(p => p[0] + "," + p[1]).join(" L ");
+    currentShape = svg.append("path")
+        .attr("class", "shape-path")
+        .attr("data-id", shapeId)
+        .attr("d", pathData)
+        .attr("fill", "none")
+        .attr("stroke", "#e91e63")
+        .attr("stroke-width", 2);
+
+    document.getElementById("completeBtn").disabled = selectedPoints.length < 3;
+}
+
+        function startNewShape() {
+            isDrawing = true;
+            selectedPoints = [];
+            setupGrid();
+            document.getElementById("instructions").innerHTML = 
+                "Click points to create your shape. Click 'Complete Shape' when finished.";
+            
+            // Disable all buttons except complete
+            document.getElementById("completeBtn").disabled = true;
+            document.getElementById("measureBtn").disabled = true;
+            document.getElementById("areaBtn").disabled = true;
+            document.getElementById("perimeterBtn").disabled = true;
+            document.getElementById("bothBtn").disabled = true;
+        }
+
+        function completeShape() {
+    if (selectedPoints.length < 3) return;
+    
+    // Close the shape
+    const pathData = "M " + selectedPoints.map(p => p[0] + "," + p[1]).join(" L ") + " Z";
+    const shapeId = currentShape.attr("data-id");
+    
+    // Update clip path
+    svg.select(`#clip-${shapeId} path`)
+        .attr("d", pathData);
+
+    currentShape.attr("d", pathData)
+        .attr("fill", "#e91e63")
+        .attr("fill-opacity", 0.5);
+
+    if (selectedCarpet) {
+        // Create pattern for the shape
+        const pattern = svg.select("defs")
+            .append("pattern")
+            .attr("id", `pattern-${shapeId}`)
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 30)  // Small size for pattern
+            .attr("height", 30);
+
+        // Add image to pattern
+        pattern.append("image")
+            .attr("href", selectedCarpet.image)
+            .attr("width", 30)
+            .attr("height", 30)
+            .attr("preserveAspectRatio", "xMidYMid slice");
+
+        // Apply pattern to shape
+        currentShape
+            .attr("fill", `url(#pattern-${shapeId})`)
+            .attr("fill-opacity", 1)
+            .attr("stroke", "#333")
+            .attr("stroke-width", 2);
+    }
+
+    isDrawing = false;
+    document.getElementById("instructions").innerHTML = 
+        "Shape completed! Select a carpet or use the analysis buttons.";
+
+    // Enable measurement buttons
+    document.getElementById("measureBtn").disabled = false;
+    document.getElementById("areaBtn").disabled = false;
+    document.getElementById("perimeterBtn").disabled = false;
+    document.getElementById("bothBtn").disabled = false;
+}
+        function showMeasurements() {
+            // Add measurements to each side
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                
+                // Calculate length in grid units
+                const dx = p2[0] - p1[0];
+                const dy = p2[1] - p1[1];
+                const length = Math.sqrt(dx * dx + dy * dy) / gridSize;
+                
+                // Add measurement line and text
+                const midX = (p1[0] + p2[0]) / 2;
+                const midY = (p1[1] + p2[1]) / 2;
+                
+                // Add arrow line
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                const offset = 20;
+                
+                svg.append("line")
+                    .attr("x1", midX + offset * Math.sin(angle * Math.PI / 180))
+                    .attr("y1", midY - offset * Math.cos(angle * Math.PI / 180))
+                    .attr("x2", midX - offset * Math.sin(angle * Math.PI / 180))
+                    .attr("y2", midY + offset * Math.cos(angle * Math.PI / 180))
+                    .attr("stroke", "black")
+                    .attr("marker-end", "url(#arrowEnd)")
+                    .attr("marker-start", "url(#arrowStart)");
+
+                // Add measurement text
+                svg.append("text")
+                    .attr("x", midX)
+                    .attr("y", midY - offset - 5)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "14px")
+                    .text(`${length.toFixed(1)} m`);
+            }
+        }
+
+        function calculateArea() {
+            // Calculate area using shoelace formula
+            let area = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                area += (p1[0] * p2[1] - p2[0] * p1[1]);
+            }
+            area = Math.abs(area / 2) / (gridSize * gridSize);
+
+            document.getElementById("explanation").innerHTML = `
+                <h3>Area Calculation</h3>
+                <div class="formula">Total Area = ${area.toFixed(1)} m²</div>
+            `;
+        }
+
+        function calculatePerimeter() {
+            let perimeter = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                const dx = p2[0] - p1[0];
+                const dy = p2[1] - p1[1];
+                perimeter += Math.sqrt(dx * dx + dy * dy) / gridSize;
+            }
+
+            document.getElementById("explanation").innerHTML = `
+                <h3>Perimeter Calculation</h3>
+                <div class="formula">Total Perimeter = ${perimeter.toFixed(1)} m</div>
+            `;
+        }
+
+        function showBoth() {
+            showMeasurements();
+            const explanation = document.getElementById("explanation");
+            
+            // Calculate area
+            let area = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                area += (p1[0] * p2[1] - p2[0] * p1[1]);
+            }
+            area = Math.abs(area / 2) / (gridSize * gridSize);
+
+            // Calculate perimeter
+            let perimeter = 0;
+            for(let i = 0; i < selectedPoints.length; i++) {
+                const p1 = selectedPoints[i];
+                const p2 = selectedPoints[(i + 1) % selectedPoints.length];
+                const dx = p2[0] - p1[0];
+                const dy = p2[1] - p1[1];
+                perimeter += Math.sqrt(dx * dx + dy * dy) / gridSize;
+            }
+
+            explanation.innerHTML = `
+                <h3>Area and Perimeter Summary</h3>
+                <p><strong>Area:</strong></p>
+                <div class="formula">Total Area = ${area.toFixed(1)} m²</div>
+                <p><strong>Perimeter:</strong></p>
+                <div class="formula">Total Perimeter = ${perimeter.toFixed(1)} m</div>
+            `;
+        }
+
+// Initialize
+setupGrid();
+setupCarpetOptions();
+        setupGrid();
+        setupCarpetOptions();
+    </script>
+</body>
+</html>

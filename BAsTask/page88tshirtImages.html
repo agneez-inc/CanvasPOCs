@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .washing-line {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            position: relative;
+            height: 300px;
+        }
+        .tshirt-img {
+            width: 150px;
+            height: auto;
+            position: absolute;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .tshirt-img:hover {
+            transform: translateY(-5px);
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .probability-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .statement {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+        .statement:hover {
+            background: #e9ecef;
+            transform: translateX(10px);
+        }
+        .probability-bar {
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .probability-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            transition: width 1s;
+        }
+        .line {
+            height: 2px;
+            background: #333;
+            position: absolute;
+            top: 63px;
+            left: 0;
+            right: 0;
+            margin: 0px;
+        }
+        .pin {
+            width: 20px;
+            height: 30px;
+            background: #81d4fa;
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>T-Shirt Probability Analysis</h2>
+        <div class="washing-line">
+            <div class="line"></div>
+            <img src="/img/floweredTshirt.png" class="tshirt-img" style="left: 50px; top: 70px;" alt="Flowered t-shirt">
+            <img src="/img/spottedTshirt.png" class="tshirt-img" style="left: 220px; top: 70px;" alt="Spotted t-shirt">
+            <img src="/img/plainTshirt.png" class="tshirt-img" style="left: 390px; top: 70px;" alt="Plain t-shirt">
+            <img src="/img/floweredTshirt.png" class="tshirt-img" style="left: 560px; top: 70px;" alt="Flowered t-shirt">
+            <img src="/img/plainTshirt.png" class="tshirt-img" style="left: 730px; top: 70px;" alt="Plain t-shirt">
+            <img src="/img/floweredTshirt.png" class="tshirt-img" style="left: 900px; top: 70px;" alt="Flowered t-shirt">
+        </div>
+        
+        <div class="controls">
+            <button onclick="simulateSelection()">Pick Random T-shirt</button>
+            <button onclick="showAnalysis()">Show Analysis</button>
+            <button onclick="resetDisplay()">Reset</button>
+        </div>
+
+        <div class="probability-panel" id="analysis"></div>
+    </div>
+
+    <script>
+        const statements = [
+            {
+                text: "a. It is certain that you will take a shirt with flowers.",
+                probability: 4/6,
+                evaluation: "False - While there's a high probability (4/6), it's not certain.",
+                type: 'flowers'
+            },
+            {
+                text: "b. There is no chance that you will take a shirt with spots.",
+                probability: 1/6,
+                evaluation: "False - There is a 1/6 chance of selecting the spotted shirt.",
+                type: 'spots'
+            },
+            {
+                text: "c. There is an even chance that you will take a shirt with flowers.",
+                probability: 4/6,
+                evaluation: "False - The probability (4/6) is higher than an even chance (1/2).",
+                type: 'flowers'
+            },
+            {
+                text: "d. There is a poor chance that you will take a shirt with spots.",
+                probability: 1/6,
+                evaluation: "True - With only 1 spotted shirt out of 6, the chance is poor.",
+                type: 'spots'
+            }
+        ];
+
+        function showAnalysis() {
+            const analysis = document.getElementById('analysis');
+            analysis.innerHTML = statements.map(statement => `
+                <div class="statement">
+                    <h3>${statement.text}</h3>
+                    <div class="probability-bar">
+                        <div class="probability-fill" style="width: ${statement.probability * 100}%"></div>
+                    </div>
+                    <p><strong>Probability: ${(statement.probability * 100).toFixed(1)}%</strong></p>
+                    <p>${statement.evaluation}</p>
+                </div>
+            `).join('');
+        }
+
+        function simulateSelection() {
+            const tshirts = document.querySelectorAll('.tshirt-img');
+            const randomIndex = Math.floor(Math.random() * tshirts.length);
+            
+            tshirts.forEach((tshirt, index) => {
+                tshirt.style.opacity = index === randomIndex ? '1' : '0.3';
+            });
+
+            setTimeout(() => {
+                tshirts.forEach(tshirt => {
+                    tshirt.style.opacity = '1';
+                });
+            }, 2000);
+        }
+
+        function resetDisplay() {
+            document.querySelectorAll('.tshirt-img').forEach(tshirt => {
+                tshirt.style.opacity = '1';
+            });
+            document.getElementById('analysis').innerHTML = '';
+        }
+
+        // Initialize with analysis shown
+        showAnalysis();
+    </script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .table-header {
+            fill: #E9967A;
+            stroke: #333;
+        }
+        .angle {
+            cursor: pointer;
+        }
+        .angle:hover {
+            filter: brightness(1.1);
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Angle Classification</h2>
+        <button onclick="sortAngles()">Sort Angles</button>
+        <div id="visualization"></div>
+    </div>
+
+    <script>
+        const width = 900;
+        const height = 600;
+        const cellWidth = width / 3;
+        const cellHeight = height - 100;
+        
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Create table structure
+        const headers = ["Acute angles", "Right angles", "Obtuse angles"];
+        headers.forEach((text, i) => {
+            svg.append("rect")
+                .attr("x", i * cellWidth)
+                .attr("y", 0)
+                .attr("width", cellWidth)
+                .attr("height", 50)
+                .attr("class", "table-header");
+
+            svg.append("text")
+                .attr("x", i * cellWidth + cellWidth/2)
+                .attr("y", 30)
+                .attr("text-anchor", "middle")
+                .attr("fill", "black")
+                .attr("font-size", "16px")
+                .text(text);
+        });
+
+        headers.forEach((_, i) => {
+            svg.append("rect")
+                .attr("x", i * cellWidth)
+                .attr("y", 50)
+                .attr("width", cellWidth)
+                .attr("height", cellHeight)
+                .attr("fill", "white")
+                .attr("stroke", "#333");
+        });
+
+        function createAngle(x, y, angle, label, color) {
+            const g = svg.append("g")
+                .attr("class", "angle")
+                .attr("transform", `translate(${x}, ${y})`);
+
+            const lineLength = 50;
+            const angleInRadians = angle * Math.PI / 180;
+
+            // First line (horizontal)
+            const line1 = g.append("line")
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", lineLength)
+                .attr("y2", 0)
+                .attr("stroke", color)
+                .attr("stroke-width", 2);
+
+            // Second line (at specified angle)
+            const x2 = lineLength * Math.cos(angleInRadians);
+            const y2 = lineLength * Math.sin(angleInRadians);
+            const line2 = g.append("line")
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", x2)
+                .attr("y2", y2)
+                .attr("stroke", color)
+                .attr("stroke-width", 2);
+
+            // Arc for the angle
+            const arcGenerator = d3.arc()
+                .innerRadius(0)
+                .outerRadius(15)
+                .startAngle(0)
+                .endAngle(angleInRadians);
+
+            g.append("path")
+                .attr("d", arcGenerator())
+                .attr("fill", "red")
+                .attr("opacity", 0.5);
+
+            // Add label
+            g.append("text")
+                .attr("x", 20)
+                .attr("y", angle > 90 ? 30 : -10)
+                .attr("text-anchor", "middle")
+                .text(label)
+                .attr("font-size", "14px");
+
+            return g;
+        }
+
+        // Define angles
+        const angles = [
+            { label: 'A', angle: 45, type: 'acute', color: '#FFD700', initialCol: 0 },    // Yellow
+            { label: 'B', angle: 60, type: 'acute', color: '#87CEEB', initialCol: 0 },    // Blue
+            { label: 'C', angle: 120, type: 'obtuse', color: '#90EE90', initialCol: 0 },  // Green
+            { label: 'D', angle: 90, type: 'right', color: '#FFD700', initialCol: 1 },    // Yellow
+            { label: 'E', angle: 90, type: 'right', color: '#87CEEB', initialCol: 1 },    // Blue
+            { label: 'F', angle: 90, type: 'right', color: '#90EE90', initialCol: 1 },    // Green
+            { label: 'G', angle: 135, type: 'obtuse', color: '#FFD700', initialCol: 2 },  // Yellow
+            { label: 'H', angle: 60, type: 'acute', color: '#87CEEB', initialCol: 2 },    // Blue
+            { label: 'I', angle: 150, type: 'obtuse', color: '#90EE90', initialCol: 2 }   // Green
+        ];
+
+        // Place angles in initial positions
+        angles.forEach((angleData, i) => {
+            const row = Math.floor(i / 3);
+            const col = i % 3;
+            const x = col * cellWidth + cellWidth/3;
+            const y = 100 + row * 150;
+            createAngle(x, y, angleData.angle, angleData.label, angleData.color);
+        });
+
+        function sortAngles() {
+            const angleElements = svg.selectAll(".angle");
+            
+            angleElements.each(function(d, i) {
+                const angle = angles[i];
+                let targetCol;
+                
+                // Determine correct column
+                if (angle.type === 'acute') targetCol = 0;
+                else if (angle.type === 'right') targetCol = 1;
+                else targetCol = 2;
+
+                // Calculate position in column
+                const sameTypeAngles = angles.filter(a => a.type === angle.type);
+                const indexInType = sameTypeAngles.findIndex(a => a.label === angle.label);
+                const row = indexInType;
+
+                const x = targetCol * cellWidth + cellWidth/3;
+                const y = 100 + row * 150;
+
+                // Animate to new position
+                d3.select(this)
+                    .transition()
+                    .duration(1000)
+                    .attr("transform", `translate(${x}, ${y})`);
+            });
+        }
+    </script>
+</body>
+</html>

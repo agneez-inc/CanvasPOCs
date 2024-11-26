@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .grid-dot {
+            fill: #666;
+            cursor: pointer;
+            transition: r 0.2s;
+        }
+        .grid-dot:hover {
+            r: 6;
+        }
+        .grid-dot.selected {
+            fill: #e74c3c;
+            r: 6;
+        }
+        .line {
+            stroke: #333;
+            stroke-width: 2;
+        }
+        .temp-line {
+            stroke: #999;
+            stroke-width: 2;
+            stroke-dasharray: 5,5;
+        }
+        .triangle {
+            fill: rgba(52, 152, 219, 0.1);
+            stroke: #2980b9;
+            stroke-width: 2;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .info-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <button onclick="clearAll()">Clear All</button>
+            <button onclick="undoLastLine()">Undo Last Line</button>
+            <button onclick="completeTriangle()">Complete Triangle</button>
+            <button onclick="findTessellation()">Find Tessellation</button>
+        </div>
+        <div id="drawing-area"></div>
+        <div class="info-panel" id="info-panel">
+            Click on dots to draw lines. Create triangles to analyze tessellation patterns.
+        </div>
+    </div>
+
+    <script>
+        const width = 800;
+        const height = 600;
+        const gridSize = 30;
+        const dotRadius = 4;
+
+        const svg = d3.select("#drawing-area")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Create dots grid
+        const dots = [];
+        for(let x = gridSize; x < width-gridSize; x += gridSize) {
+            for(let y = gridSize; y < height-gridSize; y += gridSize) {
+                dots.push({x, y});
+            }
+        }
+
+        // State management
+        let selectedDots = [];
+        let lines = [];
+        let triangles = [];
+        let tempLine = null;
+
+        // Create grid of dots
+        svg.selectAll("circle")
+            .data(dots)
+            .enter()
+            .append("circle")
+            .attr("class", "grid-dot")
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", dotRadius)
+            .on("mouseover", handleDotHover)
+            .on("click", handleDotClick);
+
+        // Create temporary line group
+        const tempLineGroup = svg.append("g");
+
+        function handleDotHover(event, d) {
+            if(selectedDots.length > 0 && selectedDots.length < 3) {
+                tempLineGroup.selectAll("*").remove();
+                tempLineGroup.append("line")
+                    .attr("class", "temp-line")
+                    .attr("x1", selectedDots[selectedDots.length-1].x)
+                    .attr("y1", selectedDots[selectedDots.length-1].y)
+                    .attr("x2", d.x)
+                    .attr("y2", d.y);
+            }
+        }
+
+        function handleDotClick(event, d) {
+            const dot = d3.select(this);
+            const isSelected = dot.classed("selected");
+
+            if(!isSelected && selectedDots.length < 3) {
+                dot.classed("selected", true);
+                selectedDots.push(d);
+
+                if(selectedDots.length > 1) {
+                    // Draw line between last two selected dots
+                    const lastDot = selectedDots[selectedDots.length-2];
+                    drawLine(lastDot, d);
+                }
+
+                if(selectedDots.length === 3) {
+                    completeTriangle();
+                }
+            }
+        }
+
+        function drawLine(start, end) {
+            const line = svg.append("line")
+                .attr("class", "line")
+                .attr("x1", start.x)
+                .attr("y1", start.y)
+                .attr("x2", end.x)
+                .attr("y2", end.y);
+            
+            lines.push({
+                element: line,
+                start: start,
+                end: end
+            });
+        }
+
+        function completeTriangle() {
+            if(selectedDots.length === 3) {
+                // Complete the triangle
+                drawLine(selectedDots[2], selectedDots[0]);
+
+                // Create triangle path
+                const trianglePath = `M ${selectedDots[0].x},${selectedDots[0].y} 
+                                    L ${selectedDots[1].x},${selectedDots[1].y} 
+                                    L ${selectedDots[2].x},${selectedDots[2].y} Z`;
+                
+                const triangle = svg.append("path")
+                    .attr("class", "triangle")
+                    .attr("d", trianglePath);
+
+                triangles.push({
+                    element: triangle,
+                    points: [...selectedDots]
+                });
+
+                // Reset selection
+                resetSelection();
+                updateInfoPanel(`Triangle created! Total triangles: ${triangles.length}`);
+            }
+        }
+
+        function undoLastLine() {
+            if(lines.length > 0) {
+                const lastLine = lines.pop();
+                lastLine.element.remove();
+                resetSelection();
+                updateInfoPanel("Last line removed");
+            }
+        }
+
+        function clearAll() {
+            lines.forEach(line => line.element.remove());
+            triangles.forEach(triangle => triangle.element.remove());
+            lines = [];
+            triangles = [];
+            resetSelection();
+            updateInfoPanel("All cleared! Start drawing new triangles.");
+        }
+
+        function resetSelection() {
+            svg.selectAll(".grid-dot").classed("selected", false);
+            selectedDots = [];
+            tempLineGroup.selectAll("*").remove();
+        }
+
+        function updateInfoPanel(message) {
+            d3.select("#info-panel").html(message);
+        }
+
+        function findTessellation() {
+            if(triangles.length < 2) {
+                updateInfoPanel("Draw more triangles to analyze tessellation pattern!");
+                return;
+            }
+
+            // Analyze similar triangles
+            const similarTriangles = findSimilarTriangles();
+            if(similarTriangles.length > 0) {
+                highlightTessellation(similarTriangles);
+            }
+        }
+
+        function findSimilarTriangles() {
+            // This is a simplified version. In reality, we'd need more complex geometry calculations
+            const similarGroups = [];
+            for(let i = 0; i < triangles.length; i++) {
+                for(let j = i + 1; j < triangles.length; j++) {
+                    if(areTrianglesSimilar(triangles[i], triangles[j])) {
+                        similarGroups.push([triangles[i], triangles[j]]);
+                    }
+                }
+            }
+            return similarGroups;
+        }
+
+        function areTrianglesSimilar(t1, t2) {
+            // Simplified check - in reality, we'd need to check angles and ratios
+            const area1 = calculateTriangleArea(t1.points);
+            const area2 = calculateTriangleArea(t2.points);
+            return Math.abs(area1 - area2) < 100; // Tolerance value
+        }
+
+        function calculateTriangleArea(points) {
+            // Area calculation using coordinate geometry
+            const [p1, p2, p3] = points;
+            return Math.abs((p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2);
+        }
+
+        function highlightTessellation(similarTriangles) {
+            similarTriangles.forEach(group => {
+                group.forEach(triangle => {
+                    triangle.element
+                        .transition()
+                        .duration(500)
+                        .style("fill", "rgba(46, 204, 113, 0.3)")
+                        .transition()
+                        .duration(500)
+                        .style("fill", "rgba(52, 152, 219, 0.1)");
+                });
+            });
+            
+            updateInfoPanel(`Found ${similarTriangles.length} tessellation patterns!`);
+        }
+    </script>
+</body>
+</html>

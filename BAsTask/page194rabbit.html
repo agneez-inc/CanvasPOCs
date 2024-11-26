@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .game-title {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        button {
+            padding: 12px 24px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .instructions {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        
+        
+        .rabbit {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .rabbit:hover {
+            transform: scale(1.1);
+        }
+        .game-board {
+    background: #f0b87f;
+    border-radius: 15px;
+    padding: 30px;
+    position: relative;
+    border: 15px solid #7ab55c;
+    margin: 20px auto;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+}
+
+.grid-cell {
+    stroke: #8b6b4f;
+    stroke-width: 1.5;
+    fill: none;
+}
+
+.coordinate-display {
+    font-weight: bold;
+    text-shadow: 1px 1px 2px white;
+}
+
+.path-highlight {
+    stroke: #ff9800;
+    stroke-width: 3;
+    stroke-dasharray: 5;
+    fill: none;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="game-title">Help the Rabbits Find the Carrot! 🥕</h1>
+        <div class="instructions">
+            Learn about coordinates by helping the rabbits navigate through the cabbage patch!
+        </div>
+        <div class="controls">
+            <button onclick="showPath('rabbit1')">Show Path for Rabbit 1</button>
+            <button onclick="showPath('rabbit2')">Show Path for Rabbit 2</button>
+            <button onclick="animate()">Animate Movement</button>
+            <button onclick="resetPositions()">Reset</button>
+        </div>
+        <div class="game-board">
+            <svg id="game" width="600" height="600"></svg>
+        </div>
+    </div>
+
+    <script>
+        const svg = d3.select("#game");
+        // Modified grid setup
+        const gridSize = 5;
+const cellSize = 100;
+const margin = 50;
+const elementOffset = cellSize / 2;
+        
+        function createIntersectionPoints() {
+    for(let i = 0; i <= gridSize; i++) {
+        for(let j = 0; j <= gridSize; j++) {
+            grid.append("circle")
+                .attr("cx", j * cellSize)
+                .attr("cy", i * cellSize)
+                .attr("r", 2)
+                .attr("fill", "none");  // Make invisible but useful for debugging
+        }
+    }
+}
+        // Add grid background
+        const grid = svg.append("g")
+            .attr("transform", `translate(50, 50)`);
+
+        // Create grass border pattern
+        const defs = svg.append("defs");
+        const grassPattern = defs.append("pattern")
+            .attr("id", "grassPattern")
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 30)
+            .attr("height", 30);
+
+        grassPattern.append("path")
+            .attr("d", "M0,15 Q15,0 30,15")
+            .attr("stroke", "#7ab55c")
+            .attr("fill", "none");
+
+        // Draw grid
+        for(let i = 0; i < gridSize; i++) {
+    for(let j = 0; j < gridSize; j++) {
+        grid.append("rect")
+            .attr("class", "grid-cell")
+            .attr("x", j * cellSize + margin)
+            .attr("y", i * cellSize + margin)
+            .attr("width", cellSize)
+            .attr("height", cellSize);
+    }
+}
+
+        // Modified cabbage positioning
+// Modified cabbage positioning
+const cabbage = grid.selectAll(".cabbage")
+    .data(d3.cross(d3.range(gridSize + 1), d3.range(gridSize + 1)))  // +1 for intersections
+    .enter()
+    .append("image")
+    .attr("href", "/img/cabbage.png")
+    .attr("x", d => d[0] * cellSize + margin - 25)  // Center at intersection
+    .attr("y", d => d[1] * cellSize + margin - 25)  // Center at intersection
+    .attr("width", 50)
+    .attr("height", 50)
+    .attr("class", "cabbage")
+    .style("display", function(d) {
+        // Skip cabbage at carrot and rabbit positions
+        if ((d[0] === 3 && d[1] === 1) || // Carrot position
+            (d[0] === 0 && d[1] === 2) || // Rabbit1 start
+            (d[0] === 4 && d[1] === 0))   // Rabbit2 start
+            return 'none';
+        return 'block';
+    });
+
+// Modified carrot positioning
+grid.append("image")
+    .attr("href", "/img/carrot.png")
+    .attr("x", 3 * cellSize + margin + (cellSize - 50)/2)  // Center in cell
+    .attr("y", 1 * cellSize + margin + (cellSize - 50)/2)  // Center in cell
+    .attr("width", 50)
+    .attr("height", 50)
+    .attr("class", "carrot");
+
+// Modified rabbit starting positions
+let rabbit1StartPos = {
+    x: margin + (cellSize - 60)/2,  // Center in first cell
+    y: 2 * cellSize + margin + (cellSize - 60)/2
+};
+let rabbit2StartPos = {
+    x: 4 * cellSize + margin + (cellSize - 60)/2,  // Center in last cell
+    y: margin + (cellSize - 60)/2
+};
+
+const rabbit1 = grid.append("image")
+    .attr("href", "/img/rabbit2.png")
+    .attr("x", rabbit1StartPos.x)
+    .attr("y", rabbit1StartPos.y)
+    .attr("width", 60)
+    .attr("height", 60)
+    .attr("class", "rabbit")
+    .attr("id", "rabbit1");
+
+const rabbit2 = grid.append("image")
+    .attr("href", "/img/rabbit1.png")
+    .attr("x", rabbit2StartPos.x)
+    .attr("y", rabbit2StartPos.y)
+    .attr("width", 60)
+    .attr("height", 60)
+    .attr("class", "rabbit")
+    .attr("id", "rabbit2");
+
+    function showPath(rabbitId) {
+    // Clear previous paths
+    grid.selectAll(".path-highlight").remove();
+    grid.selectAll(".coordinate-text").remove();
+
+    const gridMargin = margin + cellSize/2;  // Center of cells
+    
+    const path = rabbitId === 'rabbit1' 
+        ? `M${gridMargin},${2 * cellSize + gridMargin} 
+           L${3 * cellSize + gridMargin},${2 * cellSize + gridMargin} 
+           L${3 * cellSize + gridMargin},${1 * cellSize + gridMargin}`
+        : `M${4 * cellSize + gridMargin},${gridMargin} 
+           L${4 * cellSize + gridMargin},${1 * cellSize + gridMargin} 
+           L${3 * cellSize + gridMargin},${1 * cellSize + gridMargin}`;
+
+    grid.append("path")
+        .attr("class", "path-highlight")
+        .attr("d", path)
+        .attr("stroke-dasharray", "5,5")
+        .attr("opacity", 0)
+        .transition()
+        .duration(1000)
+        .attr("opacity", 1);
+
+    showCoordinates(rabbitId);
+}
+
+function showCoordinates(rabbitId) {
+    const coords = rabbitId === 'rabbit1'
+        ? [
+            { x: 0, y: 2, text: "(0,2)" },
+            { x: 3, y: 1, text: "(3,1)" }
+        ]
+        : [
+            { x: 4, y: 0, text: "(4,0)" },
+            { x: 3, y: 1, text: "(3,1)" }
+        ];
+
+    const coordDisplay = grid.selectAll(".coordinate-text")
+        .data(coords)
+        .enter()
+        .append("text")
+        .attr("class", "coordinate-display")
+        .attr("x", d => d.x * cellSize + margin + cellSize/2)
+        .attr("y", d => d.y * cellSize + margin - 10)
+        .attr("text-anchor", "middle")
+        .text(d => d.text)
+        .attr("opacity", 0)
+        .transition()
+        .duration(1000)
+        .attr("opacity", 1);
+}
+        function animate() {
+    // Calculate target position (centered in target cell)
+    const targetX = 3 * cellSize + margin + (cellSize - 60)/2;
+    const targetY = 1 * cellSize + margin + (cellSize - 60)/2;
+
+    // Animate rabbit1 path
+    rabbit1
+        .transition()
+        .duration(1000)
+        .attr("x", targetX)
+        .attr("y", rabbit1StartPos.y)
+        .transition()
+        .duration(1000)
+        .attr("y", targetY);
+
+    // Animate rabbit2 path
+    rabbit2
+        .transition()
+        .duration(1000)
+        .attr("y", targetY)
+        .transition()
+        .duration(1000)
+        .attr("x", targetX);
+}
+
+// Modified reset function
+function resetPositions() {
+    // Clear any existing transitions
+    rabbit1.interrupt();
+    rabbit2.interrupt();
+    
+    // Reset to starting positions
+    rabbit1.transition()
+        .duration(500)
+        .attr("x", rabbit1StartPos.x)
+        .attr("y", rabbit1StartPos.y);
+
+    rabbit2.transition()
+        .duration(500)
+        .attr("x", rabbit2StartPos.x)
+        .attr("y", rabbit2StartPos.y);
+
+    // Clear any paths
+    grid.selectAll(".path-highlight").remove();
+    grid.selectAll(".coordinate-text").remove();
+}
+
+        // Initialize
+        showPath('rabbit1');
+    </script>
+</body>
+</html>

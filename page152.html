@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .analysis-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .counter {
+            transition: transform 0.3s;
+        }
+        .counter:hover {
+            transform: scale(1.1);
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        .bag {
+            filter: drop-shadow(3px 3px 3px rgba(0,0,0,0.2));
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Counter Ratio and Proportion Analysis</h2>
+        <div>
+            <button onclick="showRatio('orange:blue:green')">Show Orange:Blue:Green</button>
+            <button onclick="showRatio('blue:green:orange')">Show Blue:Green:Orange</button>
+            <button onclick="showRatio('green:blue:orange')">Show Green:Blue:Orange</button>
+            <button onclick="showProportion()">Show Blue Proportion</button>
+            <button onclick="reset()">Reset</button>
+        </div>
+        <div id="visualization"></div>
+        <div id="analysis" class="analysis-box"></div>
+    </div>
+
+    <script>
+        const width = 600;
+        const height = 400;
+        const counterRadius = 20;
+
+        const svg = d3.select("#visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Draw bag
+        const bag = svg.append("path")
+            .attr("class", "bag")
+            .attr("d", `
+                M ${width/2-100},${height/2}
+                C ${width/2-100},${height/2-100} ${width/2+100},${height/2-100} ${width/2+100},${height/2}
+                L ${width/2+80},${height/2+150}
+                C ${width/2+50},${height/2+170} ${width/2-50},${height/2+170} ${width/2-80},${height/2+150}
+                Z
+            `)
+            .attr("fill", "white")
+            .attr("stroke", "#333")
+            .attr("stroke-width", 2);
+
+        // Create counters data
+        const counters = [
+            ...Array(2).fill({ color: "#ff7f0e", type: "orange" }), // Orange
+            ...Array(3).fill({ color: "#1f77b4", type: "blue" }),   // Blue
+            ...Array(5).fill({ color: "#2ca02c", type: "green" })   // Green
+        ];
+
+        // Position counters
+        const counterPositions = [
+            {x: width/2-50, y: height/2},
+            {x: width/2, y: height/2},
+            {x: width/2+50, y: height/2},
+            {x: width/2-25, y: height/2+50},
+            {x: width/2+25, y: height/2+50},
+            {x: width/2-50, y: height/2+100},
+            {x: width/2, y: height/2+100},
+            {x: width/2+50, y: height/2+100},
+            {x: width/2-25, y: height/2+150},
+            {x: width/2+25, y: height/2+150}
+        ];
+
+        // Draw counters
+        counters.forEach((counter, i) => {
+            svg.append("circle")
+                .attr("class", "counter")
+                .attr("cx", counterPositions[i].x)
+                .attr("cy", counterPositions[i].y)
+                .attr("r", counterRadius)
+                .attr("fill", counter.color)
+                .attr("stroke", "#333")
+                .attr("stroke-width", 1)
+                .attr("data-type", counter.type);
+        });
+
+        function showRatio(type) {
+            const types = type.split(":");
+            const colors = {
+                orange: "#ff7f0e",
+                blue: "#1f77b4",
+                green: "#2ca02c"
+            };
+            
+            const counts = {
+                orange: 2,
+                blue: 3,
+                green: 5
+            };
+
+            // Highlight counters in sequence
+            svg.selectAll(".counter")
+                .transition()
+                .duration(500)
+                .attr("opacity", 0.2);
+
+            types.forEach((type, i) => {
+                svg.selectAll(`.counter[data-type="${type}"]`)
+                    .transition()
+                    .delay(i * 500)
+                    .duration(500)
+                    .attr("opacity", 1)
+                    .attr("stroke-width", 3);
+            });
+
+            // Show ratio analysis
+            document.getElementById("analysis").innerHTML = `
+                <div class="result">
+                    <strong>Ratio ${type}:</strong><br>
+                    ${counts[types[0]]} : ${counts[types[1]]} : ${counts[types[2]]}
+                </div>
+                <div class="result">
+                    <strong>Simplified:</strong><br>
+                    ${counts[types[0]]} : ${counts[types[1]]} : ${counts[types[2]]}
+                    (Already in simplest form)
+                </div>
+            `;
+        }
+
+        function showProportion() {
+            const total = 10;
+            const blueCount = 3;
+            const percentage = (blueCount / total) * 100;
+
+            // Highlight blue counters
+            svg.selectAll(".counter")
+                .transition()
+                .duration(500)
+                .attr("opacity", 0.2);
+
+            svg.selectAll('.counter[data-type="blue"]')
+                .transition()
+                .duration(500)
+                .attr("opacity", 1)
+                .attr("stroke-width", 3);
+
+            document.getElementById("analysis").innerHTML = `
+                <div class="result">
+                    <strong>Blue Counter Proportion:</strong><br>
+                    Fraction: 3/10<br>
+                    Percentage: ${percentage}%
+                </div>
+                <div class="result">
+                    <strong>Calculation:</strong><br>
+                    • Total counters: ${total}<br>
+                    • Blue counters: ${blueCount}<br>
+                    • (${blueCount} ÷ ${total}) × 100 = ${percentage}%
+                </div>
+            `;
+        }
+
+        function reset() {
+            svg.selectAll(".counter")
+                .transition()
+                .duration(500)
+                .attr("opacity", 1)
+                .attr("stroke-width", 1);
+
+            document.getElementById("analysis").innerHTML = "";
+        }
+
+        // Initialize with first ratio
+        showRatio('orange:blue:green');
+    </script>
+</body>
+</html>

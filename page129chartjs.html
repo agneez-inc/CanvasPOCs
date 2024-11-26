@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .chart-container {
+            position: relative;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .analysis {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .highlight {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .stat-box {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .button-group {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 4px;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Height Distribution Analysis</h1>
+        <div class="button-group">
+            <button onclick="highlightRange('126-130')">Show 126-130 cm Range</button>
+            <button onclick="highlightTaller('141')">Show 141+ cm</button>
+            <button onclick="showTotals()">Show Class Totals</button>
+            <button onclick="resetCharts()">Reset</button>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="hexagonChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="pentagonChart"></canvas>
+        </div>
+        
+        <div class="analysis">
+            <h2>Analysis</h2>
+            <div id="stats"></div>
+            <div id="comparison-analysis" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const heightRanges = [
+            '120 or less', '121 to 125', '126 to 130', '131 to 135',
+            '136 to 140', '141 to 145', '146 to 150'
+        ];
+
+        const hexagonData = [2, 6, 11, 5, 2, 1, 1];
+        const pentagonData = [0, 3, 4, 6, 10, 5, 2];
+
+        const baseConfig = {
+            type: 'bar',
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 12,
+                        title: {
+                            display: true,
+                            text: 'Number of Children'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Height in centimetres'
+                        }
+                    }
+                }
+            }
+        };
+
+        // Create charts
+        const hexagonChart = new Chart(
+            document.getElementById('hexagonChart'),
+            {
+                ...baseConfig,
+                data: {
+                    labels: heightRanges,
+                    datasets: [{
+                        label: 'Hexagon Class',
+                        data: hexagonData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...baseConfig.options,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Heights of Children in Hexagon Class',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+        const pentagonChart = new Chart(
+            document.getElementById('pentagonChart'),
+            {
+                ...baseConfig,
+                data: {
+                    labels: heightRanges,
+                    datasets: [{
+                        label: 'Pentagon Class',
+                        data: pentagonData,
+                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...baseConfig.options,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Heights of Children in Pentagon Class',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+        function highlightRange(range) {
+            const newHexagonColors = hexagonData.map((_, index) => 
+                heightRanges[index].includes(range) ? 'rgba(54, 162, 235, 0.8)' : 'rgba(200, 200, 200, 0.3)');
+            const newPentagonColors = pentagonData.map((_, index) => 
+                heightRanges[index].includes(range) ? 'rgba(255, 99, 132, 0.8)' : 'rgba(200, 200, 200, 0.3)');
+
+            updateChartColors(hexagonChart, newHexagonColors);
+            updateChartColors(pentagonChart, newPentagonColors);
+
+            updateStats(`Children 126-130 cm tall: 
+                        Hexagon Class: ${hexagonData[2]}, 
+                        Pentagon Class: ${pentagonData[2]}`);
+        }
+
+        function highlightTaller(height) {
+            const newHexagonColors = hexagonData.map((_, index) => 
+                heightRanges[index].includes('141') || heightRanges[index].includes('146') ? 
+                'rgba(54, 162, 235, 0.8)' : 'rgba(200, 200, 200, 0.3)');
+            const newPentagonColors = pentagonData.map((_, index) => 
+                heightRanges[index].includes('141') || heightRanges[index].includes('146') ? 
+                'rgba(255, 99, 132, 0.8)' : 'rgba(200, 200, 200, 0.3)');
+
+            updateChartColors(hexagonChart, newHexagonColors);
+            updateChartColors(pentagonChart, newPentagonColors);
+
+            const hexagonTall = hexagonData.slice(5).reduce((a, b) => a + b, 0);
+            const pentagonTall = pentagonData.slice(5).reduce((a, b) => a + b, 0);
+            updateStats(`Children 141 cm or taller: 
+                        Hexagon Class: ${hexagonTall}, 
+                        Pentagon Class: ${pentagonTall}`);
+        }
+
+        function showTotals() {
+            const hexagonTotal = hexagonData.reduce((a, b) => a + b, 0);
+            const pentagonTotal = pentagonData.reduce((a, b) => a + b, 0);
+            updateStats(`Total children: 
+                        Hexagon Class: ${hexagonTotal}, 
+                        Pentagon Class: ${pentagonTotal}`);
+            
+            // Add comparison analysis
+            const hexagonTaller = hexagonData.slice(4).reduce((a, b) => a + b, 0);
+            const pentagonTaller = pentagonData.slice(4).reduce((a, b) => a + b, 0);
+            
+            document.getElementById('comparison-analysis').innerHTML = `
+                <h3>Height Comparison Analysis</h3>
+                <p>Children 136 cm or taller:<br>
+                Hexagon Class: ${hexagonTaller} children<br>
+                Pentagon Class: ${pentagonTaller} children</p>
+                <p>Possible reasons for height differences:</p>
+                <ul>
+                    <li>Age differences between classes</li>
+                    <li>Random variation in student population</li>
+                    <li>Different age grouping policies</li>
+                    <li>Class assignment based on age groups</li>
+                </ul>
+            `;
+        }
+
+        function updateChartColors(chart, colors) {
+            chart.data.datasets[0].backgroundColor = colors;
+            chart.update();
+        }
+
+        function updateStats(text) {
+            document.getElementById('stats').innerHTML = `<div class="stat-box">${text}</div>`;
+        }
+
+        function resetCharts() {
+            updateChartColors(hexagonChart, 'rgba(54, 162, 235, 0.8)');
+            updateChartColors(pentagonChart, 'rgba(255, 99, 132, 0.8)');
+            document.getElementById('stats').innerHTML = '';
+            document.getElementById('comparison-analysis').innerHTML = '';
+        }
+
+        // Initialize with totals
+        showTotals();
+    </script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #e0f2f1;
+        }
+        .shoe-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .shoe-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .shoe-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .shoe-image {
+            width: 200px;
+            height: 150px;
+            object-fit: contain;
+            margin: auto;
+        }
+        .price-tag {
+            background: #fff9c4;
+            padding: 8px 15px;
+            border-radius: 15px;
+            display: inline-block;
+            margin-top: 10px;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            font-weight: bold;
+        }
+        .mode-highlight {
+            border: 3px solid #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196F3;
+            margin: 10px 0;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Shoe Price Statistical Analysis</h2>
+        <div class="controls">
+            <button onclick="showMode()">Show Mode</button>
+            <button onclick="showMean()">Show Mean</button>
+            <button onclick="showMedian()">Show Median</button>
+            <button onclick="showDistribution()">Show Distribution</button>
+            <button onclick="showBoxPlot()">Show Box Plot</button>
+            <button onclick="resetView()">Reset</button>
+        </div>
+        <div class="shoe-container" id="shoeDisplay"></div>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="chart-container" id="chartArea"></div>
+    </div>
+
+    <script>
+        const shoes = [
+            { 
+                price: 30.00, 
+                type: "Oxford", 
+                image: "/img/shoe1.png",  // Replace with actual image path
+                color: "#ffd54f" 
+            },
+            { 
+                price: 19.99, 
+                type: "Loafer", 
+                image: "/img/shoe2.png",  // Replace with actual image path
+                color: "#ffb74d" 
+            },
+            { 
+                price: 18.50, 
+                type: "Sneaker", 
+                image: "/img/shoe3.png",  // Replace with actual image path
+                color: "#ef9a9a" 
+            },
+            { 
+                price: 18.50, 
+                type: "Heel", 
+                image: "/img/shoe4.png",  // Replace with actual image path
+                color: "#aed581" 
+            },
+            { 
+                price: 25.45, 
+                type: "Pump", 
+                image: "/img/shoe5.png",  // Replace with actual image path
+                color: "#f48fb1" 
+            }
+        ];
+
+        // Statistical functions
+        function calculateMean(prices) {
+            return prices.reduce((a, b) => a + b) / prices.length;
+        }
+
+        function calculateMedian(prices) {
+            const sorted = [...prices].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
+        }
+
+        function calculateStandardDeviation(prices) {
+            const mean = calculateMean(prices);
+            const squareDiffs = prices.map(price => Math.pow(price - mean, 2));
+            return Math.sqrt(calculateMean(squareDiffs));
+        }
+
+        function calculateMode(prices) {
+            const frequency = {};
+            prices.forEach(price => {
+                frequency[price] = (frequency[price] || 0) + 1;
+            });
+            return Object.entries(frequency)
+                .reduce((a, b) => a[1] > b[1] ? a : b)[0];
+        }
+
+        function createShoeCards() {
+            const container = d3.select("#shoeDisplay");
+            
+            shoes.forEach((shoe, i) => {
+                const card = container.append("div")
+                    .attr("class", "shoe-card")
+                    .attr("id", `shoe-${i}`);
+
+                // Add shoe image
+                card.append("img")
+                    .attr("src", shoe.image)
+                    .attr("class", "shoe-image")
+                    .attr("alt", shoe.type);
+
+                // Add price tag
+                card.append("div")
+                    .attr("class", "price-tag")
+                    .html(`$${shoe.price.toFixed(2)}`);
+            });
+        }
+
+        function updateStats(statsType) {
+            const prices = shoes.map(s => s.price);
+            const statsGrid = d3.select("#statsGrid");
+            statsGrid.html("");
+
+            switch(statsType) {
+                case 'basic':
+                    const mean = calculateMean(prices);
+                    const median = calculateMedian(prices);
+                    const stdDev = calculateStandardDeviation(prices);
+                    const mode = calculateMode(prices);
+
+                    const stats = [
+                        { name: "Mean", value: `$${mean.toFixed(2)}` },
+                        { name: "Median", value: `$${median.toFixed(2)}` },
+                        { name: "Mode", value: `$${mode}` },
+                        { name: "Standard Deviation", value: `$${stdDev.toFixed(2)}` },
+                        { name: "Range", value: `$${(Math.max(...prices) - Math.min(...prices)).toFixed(2)}` },
+                        { name: "Sample Size", value: prices.length }
+                    ];
+
+                    stats.forEach(stat => {
+                        statsGrid.append("div")
+                            .attr("class", "stat-card")
+                            .html(`
+                                <div class="stat-name">${stat.name}</div>
+                                <div class="stat-value">${stat.value}</div>
+                            `);
+                    });
+                    break;
+            }
+        }
+
+        function createBoxPlot() {
+            const prices = shoes.map(s => s.price);
+            const width = 600;
+            const height = 200;
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+
+            const svg = d3.select("#chartArea")
+                .html("")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const x = d3.scaleLinear()
+                .domain([d3.min(prices), d3.max(prices)])
+                .range([margin.left, width - margin.right]);
+
+            // Calculate quartiles
+            const sorted = prices.sort(d3.ascending);
+            const q1 = d3.quantile(sorted, 0.25);
+            const median = d3.quantile(sorted, 0.5);
+            const q3 = d3.quantile(sorted, 0.75);
+            const iqr = q3 - q1;
+            const min = Math.max(q1 - 1.5 * iqr, d3.min(prices));
+            const max = Math.min(q3 + 1.5 * iqr, d3.max(prices));
+
+            // Draw box plot
+            const boxHeight = 50;
+            const y = height / 2;
+
+            // Box
+            svg.append("rect")
+                .attr("x", x(q1))
+                .attr("y", y - boxHeight/2)
+                .attr("width", x(q3) - x(q1))
+                .attr("height", boxHeight)
+                .attr("fill", "none")
+                .attr("stroke", "#2196F3")
+                .attr("stroke-width", 2);
+
+            // Median line
+            svg.append("line")
+                .attr("x1", x(median))
+                .attr("x2", x(median))
+                .attr("y1", y - boxHeight/2)
+                .attr("y2", y + boxHeight/2)
+                .attr("stroke", "#2196F3")
+                .attr("stroke-width", 2);
+
+            // Whiskers
+            svg.append("line")
+                .attr("x1", x(min))
+                .attr("x2", x(q1))
+                .attr("y1", y)
+                .attr("y2", y)
+                .attr("stroke", "#2196F3")
+                .attr("stroke-width", 2);
+
+            svg.append("line")
+                .attr("x1", x(q3))
+                .attr("x2", x(max))
+                .attr("y1", y)
+                .attr("y2", y)
+                .attr("stroke", "#2196F3")
+                .attr("stroke-width", 2);
+
+            // Add axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height - margin.bottom})`)
+                .call(d3.axisBottom(x).ticks(5).tickFormat(d => `$${d}`));
+        }
+
+        // Initialize
+        createShoeCards();
+        updateStats('basic');
+        createBoxPlot();
+    </script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .probability-analysis {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .statement {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+        .statement:hover {
+            background: #e9ecef;
+            transform: translateX(10px);
+        }
+        .probability-bar {
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .probability-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            transition: width 1s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>T-Shirt Probability Analysis</h2>
+        <div class="canvas-container">
+            <canvas id="tshirtCanvas"></canvas>
+        </div>
+        <div class="controls">
+            <button onclick="simulateSelection()">Simulate Random Pick</button>
+            <button onclick="showProbabilities()">Show Probabilities</button>
+            <button onclick="resetDisplay()">Reset</button>
+        </div>
+        <div class="probability-analysis" id="analysis"></div>
+    </div>
+
+    <script>
+        // Initialize Fabric.js canvas
+        const canvas = new fabric.Canvas('tshirtCanvas', {
+            width: 1000,
+            height: 300,
+            selection: false
+        });
+
+        // T-shirt templates
+        const tshirtTypes = {
+            flowerPink: {
+                body: '#FFD4C4',
+                trim: '#FF6B6B',
+                pattern: 'flowers',
+                flowers: '#FF6B6B'
+            },
+            spotBlue: {
+                body: '#ADE8F4',
+                trim: '#0077B6',
+                pattern: 'spots',
+                spots: '#0077B6'
+            },
+            plainYellow: {
+                body: '#FFE5B4',
+                trim: '#FF6B6B',
+                pattern: 'none'
+            }
+        };
+
+        // Function to create a flower shape
+        function createFlower(left, top, color) {
+            const petalPath = 'M 0 0 Q 5 -5 0 -10 Q -5 -5 0 0';
+            const petals = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const petal = new fabric.Path(petalPath, {
+                    left: left,
+                    top: top,
+                    fill: color,
+                    angle: i * 72,
+                    selectable: false
+                });
+                petals.push(petal);
+            }
+
+            const center = new fabric.Circle({
+                left: left - 2,
+                top: top - 2,
+                radius: 2,
+                fill: '#FFD700',
+                selectable: false
+            });
+
+            return new fabric.Group([...petals, center], {
+                selectable: false
+            });
+        }
+        
+        function createTshirt(left, top, type) {
+    // Create t-shirt body path - improved shape for better fit with sleeves
+    const tshirtPath = new fabric.Path(`
+        M 0 20 
+        Q 25 0 50 20 
+        L 45 80 
+        Q 25 90 5 80 
+        Z`, {
+        left: left,
+        top: top,
+        fill: type.body,
+        stroke: type.trim,
+        strokeWidth: 2
+    });
+
+    // Improved left sleeve with proper shape and cuff
+    const leftSleeve = new fabric.Path(`
+        M 5 25
+        L -15 35
+        L -15 45
+        L 5 35
+        Z`, {
+        left: left,
+        top: top,
+        fill: type.body,
+        stroke: type.trim,
+        strokeWidth: 2
+    });
+
+    // Left sleeve cuff/fold
+    const leftCuff = new fabric.Path(`
+        M -15 35
+        L -15 45
+        L -12 45
+        L -12 35
+        Z`, {
+        left: left,
+        top: top,
+        fill: type.trim,
+        stroke: type.trim,
+        strokeWidth: 1
+    });
+
+    // Improved right sleeve with proper shape and cuff
+    const rightSleeve = new fabric.Path(`
+        M 45 25
+        L 65 35
+        L 65 45
+        L 45 35
+        Z`, {
+        left: left,
+        top: top,
+        fill: type.body,
+        stroke: type.trim,
+        strokeWidth: 2
+    });
+
+    // Right sleeve cuff/fold
+    const rightCuff = new fabric.Path(`
+        M 65 35
+        L 65 45
+        L 62 45
+        L 62 35
+        Z`, {
+        left: left,
+        top: top,
+        fill: type.trim,
+        stroke: type.trim,
+        strokeWidth: 1
+    });
+
+    // Add collar/neckline with trim
+    const collar = new fabric.Path(`
+        M 20 20
+        Q 25 15 30 20
+        Q 25 22 20 20
+        Z`, {
+        left: left,
+        top: top,
+        fill: type.trim,
+        stroke: type.trim,
+        strokeWidth: 1
+    });
+
+    // Create group for the complete shirt
+    const shirtGroup = new fabric.Group([
+        tshirtPath, 
+        leftSleeve, 
+        leftCuff,
+        rightSleeve, 
+        rightCuff,
+        collar
+    ], {
+        selectable: false
+    });
+
+    // Add patterns based on type
+    if (type.pattern === 'flowers') {
+        const flowerPositions = [[20,35], [35,45], [15,55]];
+        flowerPositions.forEach(([x, y]) => {
+            const flower = createFlower(left + x, top + y, type.flowers);
+            canvas.add(flower);
+        });
+    } else if (type.pattern === 'spots') {
+        const spotPositions = [[20,30], [35,40], [25,50], [15,60], [35,65]];
+        spotPositions.forEach(([x, y]) => {
+            const spot = new fabric.Circle({
+                left: left + x,
+                top: top + y,
+                radius: 3,
+                fill: type.spots,
+                selectable: false
+            });
+            canvas.add(spot);
+        });
+    }
+
+    // Improved clothespin with better shape
+    const clothespin = new fabric.Path(`
+        M 20 -10
+        L 30 -10
+        L 30 10
+        L 20 10
+        Z`, {
+        left: left,
+        top: top,
+        fill: '#81D4FA',
+        stroke: '#333',
+        strokeWidth: 1,
+        selectable: false
+    });
+
+    canvas.add(clothespin);
+    canvas.add(shirtGroup);
+}
+        // Draw washing line
+        const line = new fabric.Line([50, 50, 950, 50], {
+            stroke: '#333',
+            strokeWidth: 3,
+            selectable: false
+        });
+        canvas.add(line);
+
+        // Create all t-shirts
+        let xPosition = 100;
+        [
+            tshirtTypes.flowerPink,
+            tshirtTypes.flowerPink,
+            tshirtTypes.spotBlue,
+            tshirtTypes.flowerPink,
+            tshirtTypes.plainYellow,
+            tshirtTypes.flowerPink
+        ].forEach(type => {
+            createTshirt(xPosition, 60, type);
+            xPosition += 150;
+        });
+
+        // Probability analysis functions
+        const statements = [
+            {
+                text: "It is certain that you will take a shirt with flowers.",
+                probability: 4/6,
+                evaluation: "False - Although likely (4/6), it's not certain."
+            },
+            {
+                text: "There is no chance that you will take a shirt with spots.",
+                probability: 1/6,
+                evaluation: "False - There is a 1/6 chance of selecting the spotted shirt."
+            },
+            {
+                text: "There is an even chance that you will take a shirt with flowers.",
+                probability: 4/6,
+                evaluation: "False - The probability (4/6) is greater than even chance (1/2)."
+            }
+        ];
+
+        function showProbabilities() {
+            const analysis = document.getElementById('analysis');
+            analysis.innerHTML = statements.map(statement => `
+                <div class="statement">
+                    <h3>${statement.text}</h3>
+                    <div class="probability-bar">
+                        <div class="probability-fill" style="width: ${statement.probability * 100}%"></div>
+                    </div>
+                    <p>Probability: ${(statement.probability * 100).toFixed(1)}%</p>
+                    <p>${statement.evaluation}</p>
+                </div>
+            `).join('');
+        }
+
+        function simulateSelection() {
+            const shirts = canvas.getObjects().filter(obj => obj.type === 'group');
+            const randomIndex = Math.floor(Math.random() * shirts.length);
+            
+            shirts.forEach((shirt, index) => {
+                shirt.set('opacity', index === randomIndex ? 1 : 0.3);
+            });
+            canvas.renderAll();
+
+            setTimeout(() => {
+                shirts.forEach(shirt => shirt.set('opacity', 1));
+                canvas.renderAll();
+            }, 2000);
+        }
+
+        function resetDisplay() {
+            canvas.getObjects().forEach(obj => obj.set('opacity', 1));
+            canvas.renderAll();
+            document.getElementById('analysis').innerHTML = '';
+        }
+
+        // Initialize with probabilities shown
+        showProbabilities();
+    </script>
+</body>
+</html>
